@@ -1,7 +1,8 @@
 [build]
-  publish = "build/web"
+command = "flutter build web"
+publish = "build/web"
 
 [[redirects]]
-  from = "/*"
-  to = "/index.html"
-  status = 200
+from = "/*"
+to = "/index.html"
+status = 200
