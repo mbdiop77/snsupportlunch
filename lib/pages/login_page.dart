@@ -95,90 +95,124 @@ class _LoginPageState extends State<LoginPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Center(
-        child: SingleChildScrollView(
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 500),
-            child: Padding(
-              padding: const EdgeInsets.all(20),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
+              body: Stack(
                 children: [
-                  Text(
-                    "Connexion",
-                    style: Theme.of(context).textTheme.headlineSmall,
-                  ),
-                  const SizedBox(height: 30),
 
-                  // Matricule
-                  TextField(
-                    controller: matriculeController,
-                    decoration: InputDecoration(
-                      labelText: "Matricule",
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      prefixIcon: const Icon(Icons.badge),
-                    ),
-                  ),
-                  const SizedBox(height: 15),
-
-                  // Mot de passe
-                  TextField(
-                    controller: passwordController,
-                    obscureText: !passwordVisible,
-                    decoration: InputDecoration(
-                      labelText: "Mot de passe",
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      prefixIcon: const Icon(Icons.lock),
-                      suffixIcon: IconButton(
-                        icon: Icon(
-                          passwordVisible
-                              ? Icons.visibility
-                              : Icons.visibility_off,
-                        ),
-                        onPressed: () {
-                          setState(() {
-                            passwordVisible = !passwordVisible;
-                          });
-                        },
+                  // Cadre bleu de fond
+                  Center(
+                    child: Container(
+                      width: 300,
+                      height: 400,
+                      decoration: BoxDecoration(
+                        color: Colors.blue,
+                        borderRadius: BorderRadius.circular(30),
                       ),
                     ),
                   ),
-                  const SizedBox(height: 25),
 
-                  SizedBox(
-                    width: double.infinity,
-                    height: 50,
-                    child: ElevatedButton(
-                      onPressed: isLoading ? null : handleLogin,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.grey,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
-                      child: isLoading
-                          ? const CircularProgressIndicator(
-                              color: Colors.white,
-                            )
-                          : const Text(
-                              "Se connecter",
-                              style: TextStyle(
-                                fontSize: 16,
-                                color: Colors.black,
+                  // Formulaire
+                  Center(
+                    child: SingleChildScrollView(
+                      child: ConstrainedBox(
+                        constraints: const BoxConstraints(maxWidth: 300),
+                        child: Padding(
+                          padding: const EdgeInsets.all(20),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+
+                              // Image au-dessus du formulaire
+                              Image.asset(
+                                "assets/icons/icon_app_lunch.png",
+                                height: 100,
                               ),
-                            ),
+
+                              const SizedBox(height: 10),
+
+                              Text(
+                                "Connexion",
+                                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                                      color: Colors.black,
+                                    ),
+                              ),
+
+                              const SizedBox(height: 10),
+
+                              // Matricule
+                              TextField(
+                                controller: matriculeController,
+                                decoration: InputDecoration(
+                                  filled: true,
+                                  fillColor: Colors.white,
+                                  labelText: "Matricule",
+                                  border: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  prefixIcon: const Icon(Icons.badge),
+                                ),
+                              ),
+
+                              const SizedBox(height: 10),
+
+                              // Mot de passe
+                              TextField(
+                                controller: passwordController,
+                                obscureText: !passwordVisible,
+                                decoration: InputDecoration(
+                                  filled: true,
+                                  fillColor: Colors.white,
+                                  labelText: "Mot de passe",
+                                  border: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  prefixIcon: const Icon(Icons.lock),
+                                  suffixIcon: IconButton(
+                                    icon: Icon(
+                                      passwordVisible
+                                          ? Icons.visibility
+                                          : Icons.visibility_off,
+                                    ),
+                                    onPressed: () {
+                                      setState(() {
+                                        passwordVisible = !passwordVisible;
+                                      });
+                                    },
+                                  ),
+                                ),
+                              ),
+
+                              const SizedBox(height: 25),
+
+                              SizedBox(
+                                width: double.infinity,
+                                height: 50,
+                                child: ElevatedButton(
+                                  onPressed: isLoading ? null : handleLogin,
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: Colors.grey,
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                  ),
+                                  child: isLoading
+                                      ? const CircularProgressIndicator(color: Colors.white)
+                                      : const Text(
+                                          "Se connecter",
+                                          style: TextStyle(
+                                            fontSize: 16,
+                                            color: Colors.black,
+                                          ),
+                                        ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
                     ),
                   ),
                 ],
               ),
-            ),
-          ),
-        ),
-      ),
     );
   }
 }
