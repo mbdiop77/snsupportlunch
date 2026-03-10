@@ -132,7 +132,7 @@ class _HistoryPageState extends State<HistoryPage> {
                         children: [
                           Expanded(
                             child: Text(
-                              "Liste des personnes déjà servies",
+                              "Liste des personnes déjà servi",
                               style: const TextStyle(
                                 fontWeight: FontWeight.bold,
                                 fontSize: 14,
