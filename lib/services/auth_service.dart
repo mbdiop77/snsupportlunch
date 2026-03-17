@@ -29,6 +29,9 @@ Future<Map<String, dynamic>?> login(String matricule, String password) async {
   if (employee == null) {
     throw Exception("Matricule introuvable");
   }
+ if (employee['role'] == 'disabled') {
+  throw Exception("Accès refusé. Contactez l'administrateur.");
+}
 
   if (employee['password_hash'] == null) {
     return {

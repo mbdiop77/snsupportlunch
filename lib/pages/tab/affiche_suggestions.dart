@@ -141,7 +141,7 @@ class _SuggestionsPageState extends State<SuggestionsPage> {
           children: [
             Row(
               children: [
-                const Icon(Icons.feedback, color: Colors.lightBlueAccent, size: 18),
+                const Icon(Icons.chat_sharp, color: Colors.lightBlueAccent, size: 18),
                 const SizedBox(width: 2),
                 const Expanded(
                   child: Text(

@@ -1,7 +1,8 @@
 // ignore_for_file: use_build_context_synchronously
-
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter/material.dart';
 import '../services/auth_service.dart';
+import '../services/devices.dart';
 import 'set_password_page.dart';
 import '../providers/session_provider.dart';
 import 'package:provider/provider.dart';
@@ -75,6 +76,11 @@ class _LoginPageState extends State<LoginPage> {
 
       // ⚠️ PAS DE NAVIGATION ICI
       // main.dart va détecter la session et rediriger automatiquement
+      final deviceService = DeviceService();
+        await deviceService.upsertDevice(
+          supabase: Supabase.instance.client,
+          employeeMatricule: employee['matricule'],
+        );
 
     } catch (e) {
       showMessage("Erreur : ${e.toString()}");

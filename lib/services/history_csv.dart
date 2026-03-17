@@ -1,35 +1,38 @@
-import 'dart:io';
-import 'package:csv/csv.dart';
-import 'package:path_provider/path_provider.dart';
-import 'package:share_plus/share_plus.dart';
+//import 'dart:io';
+//import 'package:pdf/pdf.dart';
+import 'package:pdf/widgets.dart' as pw;
+//import 'package:path_provider/path_provider.dart';
+//import 'package:share_plus/share_plus.dart';
+import 'package:printing/printing.dart';
+Future<void> exportToPDF(List<Map<String, dynamic>> employees) async {
 
-Future<void> exportToCSV(List<Map<String, dynamic>> employees) async {
-  // 1️⃣ Créer les données CSV
+  final pdf = pw.Document();
+
   final headers = ['Matricule', 'Prenom', 'Nom', 'Repas', 'Heure'];
+
   final rows = employees.map((emp) {
     return [
-      emp['matricule'],
-      emp['prenom'],
-      emp['nom'],
-      emp['meal_scans'],
-      emp['last_scan_time'] ?? '',
+      emp['matricule'] ?? '',
+      emp['prenom'] ?? '',
+      emp['nom'] ?? '',
+      emp['dish'] ?? '',
+      emp['scanned_at'] ?? '',
     ];
   }).toList();
 
-  // 2️⃣ Convertir en CSV
-  String csv = const ListToCsvConverter().convert([headers, ...rows]);
-
-  // 3️⃣ Sauvegarder dans un fichier temporaire
-  final dir = await getTemporaryDirectory();
-  final path = '${dir.path}/employees_today.csv';
-  final file = File(path);
-  await file.writeAsString(csv);
-
-  // 4️⃣ Partager le fichier avec ShareParams
-  final params = ShareParams(
-    text: 'Liste des employés du jour',
-    files: [XFile(path)],
+  pdf.addPage(
+    pw.Page(
+      build: (context) {
+        return pw.TableHelper.fromTextArray(
+          headers: headers,
+          data: rows,
+        );
+      },
+    ),
   );
 
-  await SharePlus.instance.share(params);
+  await Printing.sharePdf(
+    bytes: await pdf.save(),
+    filename: 'repas.pdf',
+  );
 }

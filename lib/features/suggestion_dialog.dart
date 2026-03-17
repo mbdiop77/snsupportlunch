@@ -23,7 +23,7 @@ class SuggestionDialog {
                     /// Icône
                     const CircleAvatar(
                       radius: 10,
-                      backgroundColor: Color(0xFFFFF3CD),
+                      backgroundColor: Colors.white,
                       child: Icon(
                         Icons.feedback,
                         color: Colors.lightBlueAccent,
