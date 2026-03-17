@@ -169,7 +169,7 @@ class _HistoryPageState extends State<HistoryPage> {
                     toolbarHeight: 30,
                     titleSpacing: 8,
                     title: const Text(
-                      "Historique distribution des tepas",
+                      "Historique distribution des repas",
                       style: TextStyle(
                         color: Colors.black,
                         fontSize: 16,
