@@ -360,7 +360,8 @@ class _HistoryPageState extends State<HistoryPage> {
                                 Expanded(
                                     flex: 3,
                                     child: Text(
-                                        "${scan['prenom']} ${scan['nom']}")),
+                                        "${scan['prenom']?? ''}${(scan['nom'] != null && scan['nom'] ().trim().isNotEmpty) ? ' ${scan['nom'] }' : ''}",
+                                        )),
 
                                 Expanded(
                                     flex: 3,
