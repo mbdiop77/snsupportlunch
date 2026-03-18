@@ -8,17 +8,29 @@ Future<void> exportToPDF(List<Map<String, dynamic>> employees) async {
 
   final pdf = pw.Document();
 
-  final headers = ['Matricule', 'Prenom', 'Nom', 'Repas', 'Heure'];
+  final headers = ['Matricule', 'Prenom','Repas', 'Heure'];
+final rows = employees.map((emp) {
+  final prenom = emp['prenom'] ?? '';
+  final nom = emp['nom'] ?? '';
 
-  final rows = employees.map((emp) {
-    return [
-      emp['matricule'] ?? '',
-      emp['prenom'] ?? '',
-      emp['nom'] ?? '',
-      emp['dish'] ?? '',
-      emp['scanned_at'] ?? '',
-    ];
-  }).toList();
+  // Fusion prénom + nom (avec espace seulement si nom existe)
+  final fullName = nom.isNotEmpty ? "$prenom $nom" : prenom;
+
+  // Extraire uniquement l'heure
+  String time = '';
+  if (emp['scanned_at'] != null) {
+    final dateTime = DateTime.parse(emp['scanned_at']);
+    time =
+        "${dateTime.hour.toString().padLeft(2, '0')}:${dateTime.minute.toString().padLeft(2, '0')}";
+  }
+
+  return [
+    emp['matricule'] ?? '',
+    fullName,
+    emp['dish'] ?? '',
+    time,
+  ];
+}).toList();
 
   pdf.addPage(
     pw.Page(
