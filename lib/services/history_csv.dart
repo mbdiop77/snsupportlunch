@@ -8,7 +8,7 @@ Future<void> exportToPDF(List<Map<String, dynamic>> employees) async {
 
   final pdf = pw.Document();
 
-  final headers = ['Matricule', 'Prenom','Repas', 'Heure'];
+  final headers = ['Matricule', 'Prenom-nom','Repas', 'Heure'];
 final rows = employees.map((emp) {
   final prenom = emp['prenom'] ?? '';
   final nom = emp['nom'] ?? '';
@@ -27,7 +27,7 @@ final rows = employees.map((emp) {
   return [
     emp['matricule'] ?? '',
     fullName,
-    emp['dish'] ?? '',
+    emp['dish'] ?? '-----',
     time,
   ];
 }).toList();

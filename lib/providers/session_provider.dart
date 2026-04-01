@@ -5,6 +5,9 @@ import 'package:shared_preferences/shared_preferences.dart';
 class SessionProvider extends ChangeNotifier {
   Map<String, dynamic>? _employee;
 
+  /// ⚡ Indique si la session est en cours de chargement
+  bool isLoading = true;
+
   /// Getter pour accéder à l'employee
   Map<String, dynamic>? get employee => _employee;
 
@@ -30,6 +33,9 @@ class SessionProvider extends ChangeNotifier {
   /// Charge la session depuis SharedPreferences
   /// Supprime la session si elle a expiré (24h)
   Future<void> loadSession() async {
+    isLoading = true; // ⚡ début du chargement
+    notifyListeners();
+
     final prefs = await SharedPreferences.getInstance();
     final employeeString = prefs.getString('employee');
     final loginTimeString = prefs.getString('login_time');
@@ -45,21 +51,23 @@ class SessionProvider extends ChangeNotifier {
           _employee = null;
           await prefs.remove('employee');
           await prefs.remove('login_time');
+          isLoading = false;
           notifyListeners();
           return;
         }
 
         // Session encore valide
         _employee = Map<String, dynamic>.from(jsonDecode(employeeString));
-        notifyListeners();
       } catch (e) {
         // Si JSON invalide ou erreur, supprime la session
         _employee = null;
         await prefs.remove('employee');
         await prefs.remove('login_time');
-        notifyListeners();
       }
     }
+
+    isLoading = false; // ⚡ fin du chargement
+    notifyListeners();
   }
 
   /// Met à jour l'employee en mémoire (utile après login)

@@ -259,7 +259,7 @@ class _HistoryPageState extends State<HistoryPage> {
                   child: TextField(
                     controller: _searchController,
                     decoration: const InputDecoration(
-                      hintText: "Rechercher employé",
+                      hintText: "Rechercher (ex: matricule,prenom,nom)",
                       border: OutlineInputBorder(),
                       prefixIcon: Icon(Icons.search),
                     ),
@@ -291,7 +291,7 @@ class _HistoryPageState extends State<HistoryPage> {
 
                       Expanded(
                           flex: 3,
-                          child: Text("Nom",
+                          child: Text("Prenom-nom",
                               style: TextStyle(
                                   fontWeight:
                                       FontWeight.bold))),

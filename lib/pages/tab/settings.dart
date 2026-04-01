@@ -67,7 +67,7 @@ class _SettingPageState extends State<SettingPage> {
       });
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Nouvel admin ajouté !")));
+          const SnackBar(content: Text("Successfull !")));
     } catch (e) {
       if (!mounted) return;
       final matricule = matriculeController.text.trim();
@@ -232,8 +232,9 @@ class _SettingPageState extends State<SettingPage> {
                                   items: const [
                                     DropdownMenuItem(
                                         value: 'admin', child: Text('Admin')),
-                                    DropdownMenuItem(
-                                        value: 'employe', child: Text('Employee')),
+                                    
+                                        DropdownMenuItem(
+                                        value: 'restaurant', child: Text('Restaurant')),
                                   ],
                                   onChanged: (v) {
                                     if (v != null) setState(() => role = v);

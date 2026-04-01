@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 import '../features/menu_du_jour_sheet.dart';
 import '../features/suggestion_dialog.dart';
 import '../services/qr_service.dart';
+import '../services/auth_service.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class EmployePage extends StatefulWidget {
@@ -201,10 +202,12 @@ class _DynamicQRState extends State<EmployePage> {
 
           /// 🚪 Logout
           IconButton(
-            icon: const Icon(Icons.logout, color: Colors.black),
+            icon: const Icon(Icons.logout_outlined, color: Colors.black),
             onPressed: () async {
-              await context.read<SessionProvider>().logout();
-            },
+              final session = context.read<SessionProvider>();
+              await AuthService().logout(); // SSO
+              await session.logout();       // local
+            }
           ),
         ],
       ),

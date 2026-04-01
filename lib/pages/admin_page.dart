@@ -10,6 +10,7 @@ import 'tab/history.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import '../services/qr_service.dart';
+import '../services/auth_service.dart';
 
 class AdminPage extends StatefulWidget {
   final Map employee;
@@ -158,11 +159,13 @@ class _AdminPageState extends State<AdminPage> {
 
             /// logout
             IconButton(
-              icon: const Icon(Icons.logout, color: Colors.black),
+              icon: const Icon(Icons.logout_outlined, color: Colors.black),
               tooltip: "Logout",
-              onPressed: () async {
-                await context.read<SessionProvider>().logout();
-              },
+             onPressed: () async {
+              final session = context.read<SessionProvider>();
+              await AuthService().logout(); // SSO
+              await session.logout();       // local
+            }
             ),
           ],
 

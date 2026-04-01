@@ -1,54 +1,46 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'dart:convert';
-import 'package:crypto/crypto.dart';
 
 class AuthService {
-  final supabase = Supabase.instance.client;
+  final SupabaseClient supabase = Supabase.instance.client;
 
-  String hashPassword(String password) {
-    return sha256.convert(utf8.encode(password)).toString();
+  /// 🔹 1. Déclenche Google SSO
+  Future<void> signInWithGoogle({required String redirectTo}) async {
+    await supabase.auth.signInWithOAuth(
+      OAuthProvider.google,
+      redirectTo: redirectTo,
+    );
   }
 
-Future<Map<String, dynamic>?> login(String matricule, String password) async {
-  if (matricule.isEmpty) {
-    throw Exception("Veuillez entrer le matricule");
-  }
+  /// 🔹 2. Récupère l'employé après connexion
+  Future<Map<String, dynamic>?> loginWithGoogle() async {
+    final user = supabase.auth.currentUser;
 
-  final int? parsedMatricule = int.tryParse(matricule);
+    final email = user?.email;
+    if (email == null) {
+      throw Exception("Email utilisateur introuvable");
+    }
 
-  if (parsedMatricule == null) {
-    throw Exception("Le matricule doit être un nombre");
-  }
+    final employee = await supabase
+        .from('employees')
+        .select()
+        .eq('email', email)
+        .maybeSingle();
 
-  final employee = await supabase
-      .from('employees')
-      .select()
-      .eq('matricule', parsedMatricule)
-      .maybeSingle();
+    if (employee == null) {
+      throw Exception("Utilisateur non autorisé");
+    }
 
-  if (employee == null) {
-    throw Exception("Matricule introuvable");
-  }
- if (employee['role'] == 'disabled') {
-  throw Exception("Accès refusé. Contactez l'administrateur.");
-}
+    if (employee['role'] == 'disabled') {
+      throw Exception("Accès refusé");
+    }
 
-  if (employee['password_hash'] == null) {
     return {
-      "needsPassword": true,
-      "employee": employee
+      "employee": employee,
     };
   }
 
-  final hashedInput = hashPassword(password);
-
-  if (hashedInput != employee['password_hash']){
-    throw Exception("Mot de passe incorrect");
-  }
-
-    return {
-      "needsPassword": false,
-      "employee": employee
-    };
+  /// 🔹 3. Logout SSO
+  Future<void> logout() async {
+    await supabase.auth.signOut();
   }
 }

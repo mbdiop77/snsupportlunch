@@ -8,37 +8,33 @@ class AuthGuard {
   AuthGuard(this.session);
 
   String? redirect(BuildContext context, GoRouterState state) {
-    final path = state.uri.path; // ⚡ utilise uri.path au lieu de location
+  if (session.isLoading) return null; // ⚡ attend que la session soit chargée
 
-    // Non connecté → login
-    if (!session.isLoggedIn && path != '/login') return '/login';
+  final path = state.uri.path;
 
-    // Connecté et essaie d'aller sur login → redirige selon rôle
-    if (session.isLoggedIn && path == '/login') {
-      final role = session.employee?['role'];
-      switch (role) {
-        case 'admin':
-          return '/admin';
-        case 'employe':
-          return '/employe';
-        case 'restaurant':
-          return '/restaurant';
-        default:
-          return '/login';
-      }
-    }
+  // Non connecté → login
+  if (!session.isLoggedIn && path != '/login') return '/login';
 
-    // Protection par rôle pour les pages spécifiques
-    if (path.startsWith('/admin') && session.employee?['role'] != 'admin') {
-      return '/login';
+  // Connecté → redirection selon rôle
+  if (session.isLoggedIn && path == '/login') {
+    final role = session.employee?['role'];
+    switch (role) {
+      case 'admin':
+        return '/admin';
+      case 'employe':
+        return '/employe';
+      case 'restaurant':
+        return '/restaurant';
+      default:
+        return '/login';
     }
-    if (path.startsWith('/employe') && session.employee?['role'] != 'employe') {
-      return '/login';
-    }
-    if (path.startsWith('/restaurant') && session.employee?['role'] != 'restaurant') {
-      return '/login';
-    }
-
-    return null; // pas de redirection
   }
+
+  // Protection par rôle
+  if (path.startsWith('/admin') && session.employee?['role'] != 'admin') return '/login';
+  if (path.startsWith('/employe') && session.employee?['role'] != 'employe') return '/login';
+  if (path.startsWith('/restaurant') && session.employee?['role'] != 'restaurant') return '/login';
+
+  return null;
 }
+ }
