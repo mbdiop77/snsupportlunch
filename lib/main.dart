@@ -18,7 +18,7 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   await Supabase.initialize(
-    url: 'https://snsupport-lunch.netlify.app', // Remplace par ton projet
+    url: 'https://jilzolcigecrcvpaalbw.supabase.co', // Remplace par ton projet
     anonKey: 'jilzolcigecrcvpaalbw',               // Remplace par ta clé publique
   );
 
