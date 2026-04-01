@@ -18,8 +18,8 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   await Supabase.initialize(
-    url: 'https://votre-projet.supabase.co', // Remplace par ton projet
-    anonKey: 'votre-anon-key',               // Remplace par ta clé publique
+    url: 'https://jilzolcigecrcvpaalbw.supabase.co', // Remplace par ton projet
+    anonKey: 'jilzolcigecrcvpaalbw',               // Remplace par ta clé publique
   );
 
   final sessionProvider = SessionProvider();
