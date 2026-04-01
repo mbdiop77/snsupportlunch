@@ -1,7 +1,10 @@
 // ignore_for_file: use_build_context_synchronously
+
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
+
 import '../services/auth_service.dart';
 import '../services/devices.dart';
 import '../providers/session_provider.dart';
@@ -16,43 +19,45 @@ class LoginPage extends StatefulWidget {
 class _LoginPageState extends State<LoginPage> {
   bool isLoading = false;
   late final AuthService authService;
+  late final StreamSubscription authListener;
 
   @override
   void initState() {
     super.initState();
     authService = AuthService();
 
-    // 🔹 Listener pour le retour de Google SSO
-    authService.supabase.auth.onAuthStateChange.listen((data) async {
+    // 🔥 LISTENER UNIQUE SSO
+    authListener =
+        authService.supabase.auth.onAuthStateChange.listen((data) async {
       final session = data.session;
-      if (session == null) return; // pas connecté
+      if (session == null) return;
 
       try {
         if (mounted) setState(() => isLoading = true);
 
-        // Récupère l'employé connecté
         final result = await authService.loginWithGoogle();
         final employee = result?["employee"];
 
         if (employee != null && mounted) {
           final sessionProvider =
-              Provider.of<SessionProvider>(context, listen: false);
+              context.read<SessionProvider>();
+
           await sessionProvider.saveSession(employee);
 
-          // 🔹 Upsert device
+          // 🔹 Device tracking
           final deviceService = DeviceService();
           await deviceService.upsertDevice(
             supabase: authService.supabase,
             employeeMatricule: employee['matricule'],
           );
 
-          // 🔹 Redirection selon rôle
+          // 🔥 REDIRECTION
           _redirectByRole(employee['role']);
         }
       } catch (e) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text("Erreur login Google : $e")),
+            SnackBar(content: Text("Erreur : $e")),
           );
         }
       } finally {
@@ -61,7 +66,6 @@ class _LoginPageState extends State<LoginPage> {
     });
   }
 
-  // 🔹 Redirection selon rôle
   void _redirectByRole(String role) {
     switch (role) {
       case 'admin':
@@ -78,19 +82,17 @@ class _LoginPageState extends State<LoginPage> {
     }
   }
 
-  // 🔹 Déclenche Google SSO
   Future<void> _loginWithGoogle() async {
     if (mounted) setState(() => isLoading = true);
+
     try {
       await authService.signInWithGoogle(
         redirectTo: 'https://snsupport-lunch.netlify.app',
       );
-      // ⚠ Pas besoin de récupérer l'utilisateur ici
-      // C'est géré par le listener onAuthStateChange
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Erreur login Google : $e")),
+          SnackBar(content: Text("Erreur : $e")),
         );
       }
     } finally {
@@ -99,8 +101,14 @@ class _LoginPageState extends State<LoginPage> {
   }
 
   @override
+  void dispose() {
+    authListener.cancel(); // 🔥 IMPORTANT
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final screenWidth = MediaQuery.of(context).size.width;
+    final width = MediaQuery.of(context).size.width;
 
     return Scaffold(
       body: Center(
@@ -108,27 +116,24 @@ class _LoginPageState extends State<LoginPage> {
           padding: const EdgeInsets.all(24),
           child: ConstrainedBox(
             constraints: BoxConstraints(
-              maxWidth: screenWidth < 400 ? screenWidth : 360,
+              maxWidth: width < 400 ? width : 360,
             ),
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                // 🔹 Logo / image app
                 Image.asset(
                   "assets/icons/icon_app_lunch.png",
                   height: 90,
                 ),
-                const SizedBox(height: 32),
+                const SizedBox(height: 30),
 
-                // 🔹 Texte explicatif
                 const Text(
-                  "Bienvenue !\nVeuillez vous connecter avec votre compte professionnel",
+                  "Bienvenue 👋\nConnectez-vous avec votre compte professionnel",
                   textAlign: TextAlign.center,
-                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
                 ),
-                const SizedBox(height: 32),
 
-                // 🔹 Bouton Google SSO
+                const SizedBox(height: 30),
+
                 SizedBox(
                   width: double.infinity,
                   height: 50,
@@ -139,20 +144,8 @@ class _LoginPageState extends State<LoginPage> {
                           icon: Image.asset(
                             "assets/icons/google_logo.png",
                             height: 24,
-                            width: 24,
                           ),
-                          label: const Text(
-                            "Se connecter avec Google",
-                            style: TextStyle(fontSize: 14),
-                          ),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.white,
-                            foregroundColor: Colors.black,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            elevation: 2,
-                          ),
+                          label: const Text("Connexion Google"),
                         ),
                 ),
               ],
