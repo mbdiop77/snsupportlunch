@@ -83,7 +83,7 @@ class _LoginPageState extends State<LoginPage> {
     if (mounted) setState(() => isLoading = true);
     try {
       await authService.signInWithGoogle(
-        redirectTo: 'http://localhost:3000',
+        redirectTo: 'https://snsupport-lunch.netlify.app',
       );
       // ⚠ Pas besoin de récupérer l'utilisateur ici
       // C'est géré par le listener onAuthStateChange
