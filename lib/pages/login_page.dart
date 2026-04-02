@@ -104,7 +104,7 @@ Future<void> _handleSSORedirect() async {
 
     try {
       await authService.signInWithGoogle(
-        redirectTo: 'https://snsupport-lunch.netlify.app',
+        redirectTo: 'https://www.e-support-lunch.com',
       );
     } catch (e) {
       if (mounted) {
