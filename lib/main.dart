@@ -14,8 +14,7 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   await Supabase.initialize(
-   // url: 'https://jilzolcigecrcvpaalbw.supabase.co',
-    url: 'https://e-support-lunch.com',
+    url: 'https://jilzolcigecrcvpaalbw.supabase.co',
     anonKey: 'jilzolcigecrcvpaalbw', // 🔥 mets la vraie clé
   );
 
