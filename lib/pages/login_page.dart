@@ -1,5 +1,4 @@
 // ignore_for_file: use_build_context_synchronously
-
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -8,6 +7,7 @@ import 'package:go_router/go_router.dart';
 import '../services/auth_service.dart';
 import '../services/devices.dart';
 import '../providers/session_provider.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -20,12 +20,27 @@ class _LoginPageState extends State<LoginPage> {
   bool isLoading = false;
   late final AuthService authService;
   late final StreamSubscription authListener;
+Future<void> _handleSSORedirect() async {
+  try {
+    final uri = Uri.base;
 
+    // 🔥 Vérifie si on a un code dans l'URL
+    final code = uri.queryParameters['code'];
+
+    if (code != null) {
+      // 🔥 Échange le code contre une session
+      await Supabase.instance.client.auth.exchangeCodeForSession(code);
+    }
+  } catch (e) {
+    // ignore
+  }
+}
   @override
   void initState() {
     super.initState();
     authService = AuthService();
-
+ // 🔥 TRÈS IMPORTANT → AVANT le listener
+  _handleSSORedirect();
     // 🔥 LISTENER UNIQUE SSO
     authListener =
         authService.supabase.auth.onAuthStateChange.listen((data) async {
