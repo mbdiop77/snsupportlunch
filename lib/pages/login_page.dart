@@ -22,17 +22,19 @@ class _LoginPageState extends State<LoginPage> {
   late final StreamSubscription authListener;
 Future<void> _handleSSORedirect() async {
   try {
-    final uri = Uri.base;
+    final fullUrl = Uri.base.toString();
+   // print("🌍 FULL URL: $fullUrl");
 
-    // 🔥 Vérifie si on a un code dans l'URL
+    final uri = Uri.parse(fullUrl.replaceAll('#/', '?'));
+
     final code = uri.queryParameters['code'];
+    //print("🔑 CODE FIXED: $code");
 
     if (code != null) {
-      // 🔥 Échange le code contre une session
       await Supabase.instance.client.auth.exchangeCodeForSession(code);
     }
   } catch (e) {
-    // ignore
+    //print("❌ SSO ERROR: $e");
   }
 }
   @override
