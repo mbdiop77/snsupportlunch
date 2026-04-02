@@ -16,6 +16,7 @@ class AuthService {
     final user = supabase.auth.currentUser;
 
     final email = user?.email;
+    //debugPrint("USER EMAIL: ${user?.email}");
     if (email == null) {
       throw Exception("Email utilisateur introuvable");
     }
