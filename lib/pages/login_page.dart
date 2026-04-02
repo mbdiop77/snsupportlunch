@@ -104,7 +104,7 @@ Future<void> _handleSSORedirect() async {
 
     try {
       await authService.signInWithGoogle(
-        redirectTo: 'https://www.e-support-lunch.com',
+        redirectTo: 'https://e-support-lunch.com',
       );
     } catch (e) {
       if (mounted) {
