@@ -3,22 +3,19 @@
 # -------------------------------
 
 [build]
-  # Commande corrigée (IMPORTANT : --no-wasm)
+  # Commande corrigée (plus de --no-wasm)
   command = """
     export PATH="$PATH:$(pwd)/flutter/bin" &&
     flutter config --enable-web &&
     flutter pub get &&
-    flutter build web --release --no-wasm
+    flutter build web --release
   """
   
   publish = "build/web"
 
-# Variables d'environnement
 [build.environment]
-  # Sécurité (optionnel)
   SECRETS_SCAN_SMART_DETECTION_OMIT_VALUES = "AIza"
 
-# Redirections (Flutter Web routing)
 [[redirects]]
   from = "/*"
   to = "/index.html"
