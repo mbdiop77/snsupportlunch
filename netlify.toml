@@ -9,5 +9,4 @@
   publish = "build/web"
 
 [build.environment]
-  Key: SECRETS_SCAN_SMART_DETECTION_OMIT_VALUES
-  Value: AIza
+  SECRETS_SCAN_SMART_DETECTION_OMIT_VALUES = "AIza"
