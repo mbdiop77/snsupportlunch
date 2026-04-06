@@ -58,8 +58,8 @@ class DeviceService {
       final webInfo = await deviceInfo.webBrowserInfo;
 
       return "${webInfo.browserName.name} (${webInfo.platform ?? 'web'})";
-    }
-
+    }else{
+      
     if (Platform.isAndroid) {
       final info = await deviceInfo.androidInfo;
       return "${info.brand} ${info.model}";
@@ -87,6 +87,8 @@ class DeviceService {
 
     return "Unknown Device";
   }
+
+    }
 
   /// Enregistre ou met à jour un device admin
   Future<void> upsertDevice({
@@ -116,7 +118,7 @@ class DeviceService {
           .eq('employee_matricule', employeeMatricule)
           .eq('device_id', oldest);
 
-      debugPrint("Ancien device supprimé");
+   //   debugPrint("Ancien device supprimé");
     }
 
     /// Insert ou update
@@ -126,10 +128,11 @@ class DeviceService {
         'device_id': deviceId,
         'device_name': deviceName,
         'last_seen': DateTime.now().toIso8601String(),
+        'is_active': true, 
       },
       onConflict: 'employee_matricule,device_id',
     );
 
-    debugPrint("Device enregistré $deviceName");
+    //debugPrint("Device enregistré $deviceName");
   }
 }
