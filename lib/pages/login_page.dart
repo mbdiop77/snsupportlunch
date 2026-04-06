@@ -100,7 +100,7 @@ class _LoginPageState extends State<LoginPage> {
       if (mounted) setState(() => isLoading = true);
 
       await authService.signInWithGoogle(
-        redirectTo: 'http://localhost:3000', // 🔥 URL locale
+        redirectTo: 'https://e-support-lunch.com/', // 🔥 URL locale
       );
 
       // ⚠️ Le listener gère tout
