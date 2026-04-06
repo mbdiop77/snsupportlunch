@@ -10,11 +10,11 @@
   export CHROME_EXECUTABLE=/usr/bin/google-chrome
   export PATH="$PATH:$(pwd)/flutter/bin"
 
-  flutter doctor
   flutter config --enable-web
   flutter pub get
-  flutter build web
+  flutter build web --release --web-renderer html
   """
   publish = "build/web"
-  [build.environment]
+
+[build.environment]
   SECRETS_SCAN_SMART_DETECTION_OMIT_VALUES = "AIza"
