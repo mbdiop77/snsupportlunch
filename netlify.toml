@@ -3,22 +3,22 @@
 # -------------------------------
 
 [build]
-  # Commande pour préparer le PATH, activer le web, récupérer les dépendances et build Flutter Web
-  command = "export PATH=\"$PATH:$(pwd)/flutter/bin\" && flutter config --enable-web && flutter pub get && flutter build web --release"
+  # Commande corrigée (IMPORTANT : --no-wasm)
+  command = """
+    export PATH="$PATH:$(pwd)/flutter/bin" &&
+    flutter config --enable-web &&
+    flutter pub get &&
+    flutter build web --release --no-wasm
+  """
+  
   publish = "build/web"
-  # Optionnel : définir le framework pour Netlify (Flutter n'a pas de framework natif, mais utile si besoin)
-  # framework = "other"
 
 # Variables d'environnement
 [build.environment]
-  # Supabase URL et KEY (à remplacer par les tiennes dans Netlify UI pour plus de sécurité)
-  #SUPABASE_URL = "https://xxxxxx.supabase.co"
-  #SUPABASE_ANON_KEY = "xxxxxxxxxxxxxxxxxxxx"
-
-  # Flutter et build
+  # Sécurité (optionnel)
   SECRETS_SCAN_SMART_DETECTION_OMIT_VALUES = "AIza"
 
-# Redirections et routes (utile pour Flutter Web et le routage via Navigator 2.0)
+# Redirections (Flutter Web routing)
 [[redirects]]
   from = "/*"
   to = "/index.html"
