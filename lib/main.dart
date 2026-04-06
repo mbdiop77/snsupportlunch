@@ -9,17 +9,16 @@ import 'pages/login_page.dart';
 import 'pages/admin_page.dart';
 import 'pages/employe_page.dart';
 import 'pages/restaurant_page.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
+//import 'package:flutter_dotenv/flutter_dotenv.dart';
 //import 'services/device_realtime.dart';
 //import 'services/devices.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await dotenv.load(fileName: ".env");
   await Supabase.initialize(
-    url: dotenv.env['URL']!,
-    anonKey: dotenv.env['KEY']!,
-
+    url: 'https://jilzolcigecrcvpaalbw.supabase.co',
+    anonKey: 'sb_publishable_Ss7RrwL2LCFuctkCX8YabA_fWjQ8oBE',
   );
+
 
   final sessionProvider = SessionProvider();
   await sessionProvider.loadSession();
