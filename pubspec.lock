@@ -239,7 +239,7 @@ packages:
     source: sdk
     version: "0.0.0"
   flutter_lints:
-    dependency: "direct dev"
+    dependency: "direct overridden"
     description:
       name: flutter_lints
       sha256: "3105dc8492f6183fb076ccf1f351ac3d60564bff92e20bfc4af9cc1651f4e7e1"
@@ -918,13 +918,13 @@ packages:
     source: hosted
     version: "3.0.3"
   win32:
-    dependency: transitive
+    dependency: "direct overridden"
     description:
       name: win32
-      sha256: d7cb55e04cd34096cd3a79b3330245f54cb96a370a1c27adb3c84b917de8b08e
+      sha256: "1a2b223d727763433987bfb61916404272342812cc7b88c3b77b2ba25010e90a"
       url: "https://pub.dev"
     source: hosted
-    version: "5.15.0"
+    version: "5.0.0"
   win32_registry:
     dependency: transitive
     description:
