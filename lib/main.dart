@@ -9,13 +9,16 @@ import 'pages/login_page.dart';
 import 'pages/admin_page.dart';
 import 'pages/employe_page.dart';
 import 'pages/restaurant_page.dart';
-
+import 'package:flutter_dotenv/flutter_dotenv.dart';
+//import 'services/device_realtime.dart';
+//import 'services/devices.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-
+  await dotenv.load(fileName: ".env");
   await Supabase.initialize(
-    url: 'https://jilzolcigecrcvpaalbw.supabase.co',
-    anonKey: 'jilzolcigecrcvpaalbw', // 🔥 mets la vraie clé
+    url: dotenv.env['URL']!,
+    anonKey: dotenv.env['KEY']!,
+
   );
 
   final sessionProvider = SessionProvider();
@@ -53,8 +56,9 @@ class MyApp extends StatelessWidget {
 
         GoRoute(
           path: '/admin',
-          builder: (context, state) =>
-              AdminPage(employee: session.employee!),
+          builder: (context, state) => session.employee != null
+    ? AdminPage(employee: session.employee!)
+    : const LoginPage(),
         ),
 
         GoRoute(
@@ -77,3 +81,5 @@ class MyApp extends StatelessWidget {
     );
   }
 }
+
+

@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 class SessionProvider extends ChangeNotifier {
   Map<String, dynamic>? _employee;
@@ -11,22 +12,27 @@ class SessionProvider extends ChangeNotifier {
 
   bool get isLoggedIn => _employee != null;
 
-  /// 🔹 Sauvegarde session
+  /// ===========================
+  /// 🔹 SAVE SESSION
+  /// ===========================
   Future<void> saveSession(Map<String, dynamic> employee) async {
+    final prefs = await SharedPreferences.getInstance();
+
     _employee = employee;
 
-    final prefs = await SharedPreferences.getInstance();
     await prefs.setString('employee', jsonEncode(employee));
     await prefs.setString(
       'login_time',
       DateTime.now().toIso8601String(),
     );
 
-    isLoading = false; // 🔥 IMPORTANT
+    isLoading = false;
     notifyListeners();
   }
 
-  /// 🔹 Chargement session au démarrage
+  /// ===========================
+  /// 🔹 LOAD SESSION
+  /// ===========================
   Future<void> loadSession() async {
     isLoading = true;
     notifyListeners();
@@ -39,13 +45,17 @@ class SessionProvider extends ChangeNotifier {
       try {
         final loginTime = DateTime.parse(loginTimeString);
 
-        if (DateTime.now().difference(loginTime).inHours < 24) {
-          _employee = Map<String, dynamic>.from(jsonDecode(employeeString));
+        final isValid =
+            DateTime.now().difference(loginTime).inHours < 24;
+
+        if (isValid) {
+          _employee =
+              Map<String, dynamic>.from(jsonDecode(employeeString));
         } else {
-          await prefs.remove('employee');
-          await prefs.remove('login_time');
+          await _clearLocalSession(prefs);
         }
-      } catch (_) {
+      } catch (e) {
+        debugPrint("Session error: $e");
         _employee = null;
       }
     }
@@ -54,12 +64,42 @@ class SessionProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// 🔹 Logout
+  /// ===========================
+  /// 🔹 LOGOUT (USER ACTION)
+  /// ===========================
   Future<void> logout() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.clear();
+    await forceLogout();
+  }
 
+  /// ===========================
+  /// 🔥 FORCE LOGOUT (ADMIN / DEVICE)
+  /// ===========================
+  Future<void> forceLogout() async {
+       debugPrint("FORCE LOGOUT TRIGGERED");
+    final prefs = await SharedPreferences.getInstance();
+
+    // 🔐 1. Déconnexion Supabase
+    try {
+      await Supabase.instance.client.auth.signOut();
+    } catch (e) {
+      debugPrint("Erreur signOut: $e");
+    }
+
+    // 🧹 2. Nettoyage local
+    await _clearLocalSession(prefs);
+
+    // 🧠 3. Reset mémoire
     _employee = null;
+
+    // 🔄 4. Notifie GoRouter
     notifyListeners();
+  }
+
+  /// ===========================
+  /// 🧹 CLEAR LOCAL SESSION
+  /// ===========================
+  Future<void> _clearLocalSession(SharedPreferences prefs) async {
+    await prefs.remove('employee');
+    await prefs.remove('login_time');
   }
 }

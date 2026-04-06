@@ -5,7 +5,6 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-
 import '../services/auth_service.dart';
 import '../services/devices.dart';
 import '../providers/session_provider.dart';
@@ -29,15 +28,13 @@ class _LoginPageState extends State<LoginPage> {
 
     authService = AuthService();
 
-    /// 🔥 LISTENER SSO (ULTRA IMPORTANT)
-    authListener =
-        authService.supabase.auth.onAuthStateChange.listen((data) async {
+    /// 🔥 LISTENER SSO
+    authListener = authService.supabase.auth.onAuthStateChange.listen((data) async {
       final event = data.event;
       final session = data.session;
 
       debugPrint("EVENT: $event");
 
-      // 🔴 On traite UNIQUEMENT le login réussi
       if (event != AuthChangeEvent.signedIn || session == null) return;
 
       try {
@@ -47,7 +44,7 @@ class _LoginPageState extends State<LoginPage> {
         debugPrint("USER EMAIL: ${user?.email}");
 
         // 🔥 Récupération employé depuis DB
-        final result = await authService.loginWithGoogle();
+        final result = await authService.loginWithGoogle(); // Ta fonction doit retourner employee
         final employee = result?["employee"];
 
         if (employee == null) {
@@ -58,7 +55,7 @@ class _LoginPageState extends State<LoginPage> {
         final sessionProvider = context.read<SessionProvider>();
         await sessionProvider.saveSession(employee);
 
-        // 🔥 Device tracking (optionnel mais utile)
+        // 🔥 Device tracking
         final deviceService = DeviceService();
         await deviceService.upsertDevice(
           supabase: authService.supabase,
@@ -68,8 +65,6 @@ class _LoginPageState extends State<LoginPage> {
         // 🔥 REDIRECTION
         _redirectByRole(employee['role']);
       } catch (e) {
-        debugPrint("ERREUR LOGIN: $e");
-
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(content: Text("Erreur : $e")),
@@ -85,6 +80,7 @@ class _LoginPageState extends State<LoginPage> {
   void _redirectByRole(String role) {
     switch (role) {
       case 'admin':
+      case 'subadmin': 
         context.go('/admin');
         break;
       case 'employe':
@@ -104,17 +100,15 @@ class _LoginPageState extends State<LoginPage> {
       if (mounted) setState(() => isLoading = true);
 
       await authService.signInWithGoogle(
-        redirectTo: 'https://e-support-lunch.com',
+        redirectTo: 'http://localhost:3000', // 🔥 URL locale
       );
 
-      // ⚠️ Rien à faire ici
-      // Le listener gère tout
+      // ⚠️ Le listener gère tout
     } catch (e) {
       debugPrint("ERREUR SSO: $e");
-
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Erreur login Google")),
+          const SnackBar(content: Text("Erreur login Google")),
         );
       }
     } finally {
@@ -148,7 +142,6 @@ class _LoginPageState extends State<LoginPage> {
                   "assets/icons/icon_app_lunch.png",
                   height: 100,
                 ),
-
                 const SizedBox(height: 30),
 
                 /// 🔹 Texte
@@ -160,7 +153,6 @@ class _LoginPageState extends State<LoginPage> {
                     fontWeight: FontWeight.w500,
                   ),
                 ),
-
                 const SizedBox(height: 30),
 
                 /// 🔹 Bouton Google
@@ -189,7 +181,6 @@ class _LoginPageState extends State<LoginPage> {
                           ),
                         ),
                 ),
-
                 const SizedBox(height: 15),
 
                 /// 🔹 Loader texte

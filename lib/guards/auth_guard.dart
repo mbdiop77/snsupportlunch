@@ -20,6 +20,7 @@ class AuthGuard {
     final role = session.employee?['role'];
     switch (role) {
       case 'admin':
+      case 'subadmin': 
         return '/admin';
       case 'employe':
         return '/employe';
