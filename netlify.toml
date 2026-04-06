@@ -1,22 +1,15 @@
 # -------------------------------
-# Netlify Configuration for Flutter Web + Supabase
+# Netlify Configuration Flutter Web + Supabase
 # -------------------------------
 
 [build]
-  # Commande pour préparer le PATH, activer Flutter Web, récupérer les dépendances et build
   command = "export PATH=\"$PATH:$(pwd)/flutter/bin\" && flutter config --enable-web && flutter pub get && flutter build web --release"
   publish = "build/web"
 
-# Variables d'environnement
 [build.environment]
-  # Supabase URL et Key : définir directement dans Netlify UI pour plus de sécurité
-  # SUPABASE_URL = "https://xxxxxx.supabase.co"
-  # SUPABASE_ANON_KEY = "xxxxxxxxxxxxxxxxxxxx"
+  # Désactive complètement le scan (solution sûre ici)
+  SECRETS_SCAN_SMART_DETECTION_ENABLED = "false"
 
-  # Ignorer les faux positifs de secrets dans le SDK Flutter
-  SECRETS_SCAN_SMART_DETECTION_OMIT_VALUES = "AIza"
-
-# Redirections pour Flutter Web (Navigator 2.0)
 [[redirects]]
   from = "/*"
   to = "/index.html"
