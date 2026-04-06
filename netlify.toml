@@ -5,6 +5,7 @@
   flutter config --enable-web
   flutter pub get
   flutter build web
+   flutter build web --no-wasm-dry-run
   """
   publish = "build/web"
   [build.environment]
