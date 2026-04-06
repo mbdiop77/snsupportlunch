@@ -1,11 +1,6 @@
 [build]
-  command = """
-  export PATH="$PATH:$(pwd)/flutter/bin"
-
-  flutter config --enable-web
-  flutter pub get
-  flutter build web --release
-  """
+  # Commande unique pour Netlify
+  command = "export PATH=\"$PATH:$(pwd)/flutter/bin\" && flutter config --enable-web && flutter pub get && flutter build web --release"
   publish = "build/web"
 
 [build.environment]
