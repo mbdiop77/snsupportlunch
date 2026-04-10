@@ -43,67 +43,72 @@ class _UsersManagementDialogState extends State<UsersManagementDialog> {
   /// ===========================
   /// LOAD USERS FIXED
   /// ===========================
-  Future<void> loadUsers({bool reset = false}) async {
-    try {
-      if (reset) {
-        page = 0;
-        users.clear();
-        hasMore = true;
-      }
-
-      if (!hasMore) return;
-
-      setState(() => isLoading = true);
-
-      // 🔥 IMPORTANT: recréer query propre
-      var query = supabase.from('employees').select('''
-        matricule,
-        prenom,
-        nom,
-        email,
-        role,
-        status,
-        devices (
-          device_id,
-          last_seen,
-          device_name,
-          is_active
-        )
-      ''');
-
-      // ✅ filtre ROLE
-      if (selectedRole != 'all') {
-        query = query.eq('role', selectedRole);
-      }
-
-      // ✅ recherche (FIX OR)
-      if (searchQuery.isNotEmpty) {
-        final search = searchQuery.replaceAll(',', '');
-
-        query = query.or(
-          'matricule.ilike.%$search%,'
-          'email.ilike.%$search%,'
-          'prenom.ilike.%$search%,'
-          'nom.ilike.%$search%',
-        );
-      }
-
-      final response = await query
-          .range(page * limit, (page + 1) * limit - 1);
-
-      final newUsers = List<Map<String, dynamic>>.from(response);
-
-      setState(() {
-        users.addAll(newUsers);
-        page++;
-        isLoading = false;
-        hasMore = newUsers.length == limit;
-      });
-    } catch (e) {
-      debugPrint("ERROR loadUsers: $e");
+Future<void> loadUsers({bool reset = false}) async {
+  try {
+    if (reset) {
+      page = 0;
+      users.clear();
+      hasMore = true;
     }
-  }
 
+    if (!hasMore) return;
+
+    setState(() => isLoading = true);
+
+    var query = supabase.from('employees').select('''
+      matricule,
+      prenom,
+      nom,
+      email,
+      role,
+      status,
+      devices (
+        device_id,
+        last_seen,
+        device_name,
+        is_active
+      )
+    ''');
+
+    /// ✅ FILTRE ROLE
+    if (selectedRole != 'all') {
+      query = query.eq('role', selectedRole);
+    }
+
+    /// ✅ FILTRE SEARCH (FIX CRITIQUE)
+    if (searchQuery.trim().isNotEmpty) {
+      final search = searchQuery.trim();
+
+      query = query.or(
+        'matricule.ilike.%$search%,'
+        'email.ilike.%$search%,'
+        'prenom.ilike.%$search%,'
+        'nom.ilike.%$search%',
+      );
+    }
+
+    /// 🔥 DEBUG IMPORTANT
+    debugPrint("ROLE: $selectedRole");
+    debugPrint("SEARCH: $searchQuery");
+
+    final response = await query
+        .range(page * limit, (page + 1) * limit - 1);
+
+    debugPrint("RESULT LENGTH: ${response.length}");
+
+    final newUsers = List<Map<String, dynamic>>.from(response);
+
+    setState(() {
+      users.addAll(newUsers);
+      page++;
+      isLoading = false;
+      hasMore = newUsers.length == limit;
+    });
+
+  } catch (e) {
+    debugPrint("ERROR loadUsers: $e");
+  }
+}
   /// ===========================
   /// REALTIME
   /// ===========================
