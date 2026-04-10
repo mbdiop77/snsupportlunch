@@ -31,8 +31,8 @@ class AuthService {
       throw Exception("Utilisateur non autorisé");
     }
 
-    if (employee['role'] == 'disabled') {
-      throw Exception("Accès refusé");
+    if (employee['role'] == 'false') {
+      throw Exception("Accès refusé,merci de contacter l'admin de la plateforme");
     }
 
     return {

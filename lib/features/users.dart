@@ -41,7 +41,7 @@ class _UsersManagementDialogState extends State<UsersManagementDialog> {
   }
 
   /// ===========================
-  /// LOAD USERS (PAGINATION + FILTER DB)
+  /// LOAD USERS FIXED
   /// ===========================
   Future<void> loadUsers({bool reset = false}) async {
     try {
@@ -55,12 +55,14 @@ class _UsersManagementDialogState extends State<UsersManagementDialog> {
 
       setState(() => isLoading = true);
 
+      // 🔥 IMPORTANT: recréer query propre
       var query = supabase.from('employees').select('''
         matricule,
         prenom,
         nom,
         email,
         role,
+        status,
         devices (
           device_id,
           last_seen,
@@ -69,18 +71,20 @@ class _UsersManagementDialogState extends State<UsersManagementDialog> {
         )
       ''');
 
-      // filtre rôle
+      // ✅ filtre ROLE
       if (selectedRole != 'all') {
         query = query.eq('role', selectedRole);
       }
 
-      // recherche multi-colonnes
+      // ✅ recherche (FIX OR)
       if (searchQuery.isNotEmpty) {
+        final search = searchQuery.replaceAll(',', '');
+
         query = query.or(
-          'matricule.ilike.%$searchQuery%,'
-          'email.ilike.%$searchQuery%,'
-          'prenom.ilike.%$searchQuery%,'
-          'nom.ilike.%$searchQuery%',
+          'matricule.ilike.%$search%,'
+          'email.ilike.%$search%,'
+          'prenom.ilike.%$search%,'
+          'nom.ilike.%$search%',
         );
       }
 
@@ -93,10 +97,7 @@ class _UsersManagementDialogState extends State<UsersManagementDialog> {
         users.addAll(newUsers);
         page++;
         isLoading = false;
-
-        if (newUsers.length < limit) {
-          hasMore = false;
-        }
+        hasMore = newUsers.length == limit;
       });
     } catch (e) {
       debugPrint("ERROR loadUsers: $e");
@@ -113,9 +114,7 @@ class _UsersManagementDialogState extends State<UsersManagementDialog> {
           event: PostgresChangeEvent.all,
           schema: 'public',
           table: 'devices',
-          callback: (_) {
-            loadUsers(reset: true);
-          },
+          callback: (_) => loadUsers(reset: true),
         )
         .subscribe();
   }
@@ -127,23 +126,18 @@ class _UsersManagementDialogState extends State<UsersManagementDialog> {
     if (_debounce?.isActive ?? false) _debounce!.cancel();
 
     _debounce = Timer(const Duration(milliseconds: 400), () {
-      setState(() {
-        searchQuery = value.toLowerCase();
-      });
+      setState(() => searchQuery = value.toLowerCase());
       loadUsers(reset: true);
     });
   }
 
   /// ===========================
-  /// USER STATUS
+  /// STATUS USER (FIX)
   /// ===========================
-  Future<void> toggleUserStatus(String matricule, String currentRole) async {
-    final newRole =
-        currentRole == 'disabled' ? 'restaurant' : 'disabled';
-
+  Future<void> toggleUserStatus(String matricule, bool currentStatus) async {
     await supabase
         .from('employees')
-        .update({'role': newRole})
+        .update({'status': !currentStatus})
         .eq('matricule', matricule);
 
     loadUsers(reset: true);
@@ -197,7 +191,6 @@ class _UsersManagementDialogState extends State<UsersManagementDialog> {
   @override
   Widget build(BuildContext context) {
     return Dialog(
-      insetPadding: const EdgeInsets.all(10),
       child: Container(
         width: 900,
         height: 650,
@@ -243,7 +236,6 @@ class _UsersManagementDialogState extends State<UsersManagementDialog> {
                     DropdownMenuItem(value: 'admin', child: Text("Admin")),
                     DropdownMenuItem(value: 'subadmin', child: Text("Sub Admin")),
                     DropdownMenuItem(value: 'restaurant', child: Text("Restaurant")),
-                    DropdownMenuItem(value: 'disabled', child: Text("Disabled")),
                   ],
                   onChanged: (value) {
                     setState(() => selectedRole = value!);
@@ -265,17 +257,14 @@ class _UsersManagementDialogState extends State<UsersManagementDialog> {
                       itemBuilder: (context, index) {
 
                         if (index >= users.length) {
-                          return const Padding(
-                            padding: EdgeInsets.all(16),
-                            child: Center(child: CircularProgressIndicator()),
-                          );
+                          return const Center(child: CircularProgressIndicator());
                         }
 
                         final user = users[index];
                         final devices = (user['devices'] ?? []) as List;
 
                         final isOnline = isUserOnline(devices);
-                        final isDisabled = user['role'] == 'disabled';
+                        final isActive = user['status'] == true;
 
                         final mainInfo =
                             (user['email'] != null && user['email'].toString().isNotEmpty)
@@ -283,8 +272,7 @@ class _UsersManagementDialogState extends State<UsersManagementDialog> {
                                 : "Matricule: ${user['matricule']}";
 
                         return Card(
-                          color: isDisabled ? Colors.red.shade100 : null,
-                          margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 10),
+                          color: isActive ? null : Colors.red.shade100,
                           child: ExpansionTile(
                             title: Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -295,71 +283,51 @@ class _UsersManagementDialogState extends State<UsersManagementDialog> {
                             ),
                             subtitle: Text(mainInfo),
                             children: [
-                              Padding(
-                                padding: const EdgeInsets.all(10),
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
 
-                                    /// ROLE + ACTION
+                              /// STATUS USER
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Text("Actif: ${isActive ? 'Oui' : 'Non'}"),
+                                  IconButton(
+                                    icon: Icon(
+                                      Icons.block,
+                                      color: isActive ?Colors.green  : Colors.red,
+                                    ),
+                                    onPressed: () {
+                                      toggleUserStatus(
+                                        user['matricule'],
+                                        isActive,
+                                      );
+                                    },
+                                  ),
+                                ],
+                              ),
+
+                              /// DEVICES
+                              ...devices.map((device) {
+                                return Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Text(device['device_name'] ?? ''),
+                                    Text("Actif: ${device['is_active'] ? 'Oui' : 'Non'}"),
                                     Row(
-                                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                       children: [
-                                        Text("Role: ${user['role']}"),
                                         IconButton(
-                                          icon: Icon(
-                                            Icons.block,
-                                            color: isDisabled
-                                                ? Colors.green
-                                                : Colors.red,
-                                          ),
-                                          onPressed: () {
-                                            toggleUserStatus(
-                                                user['matricule'],
-                                                user['role']);
-                                          },
+                                          icon: const Icon(Icons.logout),
+                                          onPressed: () =>
+                                              disconnectDevice(device['device_id']),
+                                        ),
+                                        IconButton(
+                                          icon: const Icon(Icons.delete),
+                                          onPressed: () =>
+                                              deleteDevice(device['device_id']),
                                         ),
                                       ],
                                     ),
-
-                                    const SizedBox(height: 10),
-
-                                    /// DEVICES
-                                    devices.isEmpty
-                                        ? const Text("Aucun device")
-                                        : Column(
-                                            children: devices.map<Widget>((device) {
-                                              return Row(
-                                                mainAxisAlignment:
-                                                    MainAxisAlignment.spaceBetween,
-                                                children: [
-                                                  Text(device['device_name'] ?? ''),
-                                                  Text("Actif: ${device['is_active'] ? 'Oui' : 'Non'}"),
-                                                  Row(
-                                                    children: [
-                                                      IconButton(
-                                                        icon: const Icon(Icons.logout),
-                                                        onPressed: () {
-                                                          disconnectDevice(
-                                                              device['device_id']);
-                                                        },
-                                                      ),
-                                                      IconButton(
-                                                        icon: const Icon(Icons.delete),
-                                                        onPressed: () {
-                                                          deleteDevice(
-                                                              device['device_id']);
-                                                        },
-                                                      ),
-                                                    ],
-                                                  ),
-                                                ],
-                                              );
-                                            }).toList(),
-                                          ),
                                   ],
-                                ),
-                              )
+                                );
+                              }),
                             ],
                           ),
                         );
