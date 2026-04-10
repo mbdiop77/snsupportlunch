@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -14,156 +15,180 @@ class _UsersManagementDialogState extends State<UsersManagementDialog> {
 
   List<Map<String, dynamic>> users = [];
   bool isLoading = true;
+
   String selectedRole = 'all';
+  String searchQuery = '';
+
+  int page = 0;
+  final int limit = 20;
+  bool hasMore = true;
+
+  Timer? _debounce;
+  final ScrollController _scrollController = ScrollController();
 
   @override
   void initState() {
     super.initState();
-    loadUsers();
+    loadUsers(reset: true);
     setupRealtime();
-  }
 
-  /// ===========================
-  /// FETCH USERS + DEVICES
-  /// ===========================
-Future<void> loadUsers() async {
-  try {
-    setState(() => isLoading = true);
-
-    var query = supabase.from('employees').select('''
-      matricule,
-      prenom,
-      nom,
-      email,
-      role,
-      devices (
-        device_id,
-        last_seen,
-        device_name,
-        is_active
-      )
-    ''');
-
-    // 🔹 Filtre par rôle sauf "all"
-    if (selectedRole != 'all') {
-      query = query.eq('role', selectedRole.trim());
-    }
-
-    final response = await query;
-
-    //debugPrint("ROLE SELECTED: $selectedRole");
-
-    setState(() {
-      users = List<Map<String, dynamic>>.from(response);
-      isLoading = false;
+    _scrollController.addListener(() {
+      if (_scrollController.position.pixels >=
+          _scrollController.position.maxScrollExtent - 200) {
+        loadUsers();
+      }
     });
-  } catch (e) {
-    debugPrint("ERROR: $e");
   }
 
-  // 🔹 DEBUG : afficher les rôles récupérés
-}
+  /// ===========================
+  /// LOAD USERS (PAGINATION + FILTER DB)
+  /// ===========================
+  Future<void> loadUsers({bool reset = false}) async {
+    try {
+      if (reset) {
+        page = 0;
+        users.clear();
+        hasMore = true;
+      }
+
+      if (!hasMore) return;
+
+      setState(() => isLoading = true);
+
+      var query = supabase.from('employees').select('''
+        matricule,
+        prenom,
+        nom,
+        email,
+        role,
+        devices (
+          device_id,
+          last_seen,
+          device_name,
+          is_active
+        )
+      ''');
+
+      // filtre rôle
+      if (selectedRole != 'all') {
+        query = query.eq('role', selectedRole);
+      }
+
+      // recherche multi-colonnes
+      if (searchQuery.isNotEmpty) {
+        query = query.or(
+          'matricule.ilike.%$searchQuery%,'
+          'email.ilike.%$searchQuery%,'
+          'prenom.ilike.%$searchQuery%,'
+          'nom.ilike.%$searchQuery%',
+        );
+      }
+
+      final response = await query
+          .range(page * limit, (page + 1) * limit - 1);
+
+      final newUsers = List<Map<String, dynamic>>.from(response);
+
+      setState(() {
+        users.addAll(newUsers);
+        page++;
+        isLoading = false;
+
+        if (newUsers.length < limit) {
+          hasMore = false;
+        }
+      });
+    } catch (e) {
+      debugPrint("ERROR loadUsers: $e");
+    }
+  }
 
   /// ===========================
-  /// REALTIME (AUTO REFRESH)
+  /// REALTIME
   /// ===========================
   void setupRealtime() {
     supabase
-        .channel('public:devices')
+        .channel('realtime-users')
         .onPostgresChanges(
           event: PostgresChangeEvent.all,
           schema: 'public',
           table: 'devices',
-          callback: (payload) {
-            loadUsers();
+          callback: (_) {
+            loadUsers(reset: true);
           },
         )
         .subscribe();
   }
 
   /// ===========================
-  /// ACTIONS
+  /// SEARCH DEBOUNCE
   /// ===========================
+  void onSearchChanged(String value) {
+    if (_debounce?.isActive ?? false) _debounce!.cancel();
 
+    _debounce = Timer(const Duration(milliseconds: 400), () {
+      setState(() {
+        searchQuery = value.toLowerCase();
+      });
+      loadUsers(reset: true);
+    });
+  }
+
+  /// ===========================
+  /// USER STATUS
+  /// ===========================
+  Future<void> toggleUserStatus(String matricule, String currentRole) async {
+    final newRole =
+        currentRole == 'disabled' ? 'restaurant' : 'disabled';
+
+    await supabase
+        .from('employees')
+        .update({'role': newRole})
+        .eq('matricule', matricule);
+
+    loadUsers(reset: true);
+  }
+
+  /// ===========================
+  /// DEVICE ACTIONS
+  /// ===========================
   Future<void> disconnectDevice(String deviceId) async {
     await supabase
         .from('devices')
         .update({'is_active': false})
         .eq('device_id', deviceId);
 
-    loadUsers();
+    loadUsers(reset: true);
   }
 
-  Future<void> toggleDevice(String deviceId, bool status) async {
-    await supabase
-        .from('devices')
-        .update({'is_active': status})
-        .eq('device_id', deviceId);
-
-    loadUsers();
-  }
-
-/// ===========================
-/// LOGOUT ALL USERS (FORCE)
-/// ===========================
-Future<void> _logoutAllUsers() async {
-  try {
-    // 1️⃣ Récupère tous les devices
-    for (var user in users) {
-      final devicesRaw = user['devices'];
-      final List devices = devicesRaw is List
-          ? devicesRaw
-          : devicesRaw != null
-              ? [devicesRaw]
-              : [];
-
-      for (var device in devices) {
-              debugPrint("debug test log out id device : ${device['device_id']}");
-
-        // 2️⃣ Met à jour is_active = false
-        await supabase
-            .from('devices')
-            .update({'is_active': false})
-            .eq('device_id', device['device_id']);
-      }
-    }
-
-    // 3️⃣ Affiche SnackBar après mise à jour DB
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text("Tous les utilisateurs ont été déconnectés !"),
-      ),
-    );
-  } catch (e) {
-    debugPrint("Erreur logoutAllUsers: $e");
-  }
-}
-
-Future<void> _deleteAllUsers(BuildContext ctx) async {
-  for (var user in users) {
-    final devicesRaw = user['devices'];
-    final List devices = devicesRaw is List
-        ? devicesRaw
-        : devicesRaw != null
-            ? [devicesRaw]
-            : [];
-    for (var device in devices) {
-      await deleteDevice(device['device_id']);
-    }
-  }
-    if (!mounted) return;
-  ScaffoldMessenger.of(context).showSnackBar(
-    const SnackBar(content: Text("Tous les utilisateurs ont été supprimés")),
-  );
-}
   Future<void> deleteDevice(String deviceId) async {
     await supabase
         .from('devices')
         .delete()
         .eq('device_id', deviceId);
 
-    loadUsers();
+    loadUsers(reset: true);
+  }
+
+  /// ===========================
+  /// ONLINE STATUS
+  /// ===========================
+  bool isUserOnline(List devices) {
+    return devices.any((d) => d['is_active'] == true);
+  }
+
+  Widget buildStatusBadge(bool isOnline) {
+    return Row(
+      children: [
+        Icon(
+          Icons.circle,
+          size: 10,
+          color: isOnline ? Colors.green : Colors.grey,
+        ),
+        const SizedBox(width: 5),
+        Text(isOnline ? "Online" : "Offline"),
+      ],
+    );
   }
 
   /// ===========================
@@ -172,116 +197,57 @@ Future<void> _deleteAllUsers(BuildContext ctx) async {
   @override
   Widget build(BuildContext context) {
     return Dialog(
-      insetPadding: const EdgeInsets.all(5),
+      insetPadding: const EdgeInsets.all(10),
       child: Container(
-        width: 800,
-        height: 600,
-        padding: const EdgeInsets.all(5),
+        width: 900,
+        height: 650,
+        padding: const EdgeInsets.all(10),
         child: Column(
           children: [
 
-           /// HEADER
-/// HEADER SAFE
-Row(
-  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-  children: [
-    const Text(
-      "Gestion des utilisateurs",
-      style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-    ),
-    Row(
-      children: [
-        // 🔹 Logout All
-        IconButton(
-          tooltip: "Déconnecter tous",
-          icon: const Icon(Icons.logout),
-          onPressed: () {
-            showDialog<bool>(
-              context: context,
-              builder: (BuildContext ctx) {
-                return AlertDialog(
-                  title: const Text("Confirmer"),
-                  content: const Text("Déconnecter tous les utilisateurs ?"),
-                  actions: [
-                    TextButton(
-                      onPressed: () => Navigator.pop(ctx, false),
-                      child: const Text("Annuler"),
-                    ),
-                    TextButton(
-                      onPressed: () {
-                        Navigator.pop(ctx, true);
-                        _logoutAllUsers(); // tout safe ici
-                      },
-                      child: const Text("Oui"),
-                    ),
-                  ],
-                );
-              },
-            );
-          },
-        ),
-
-        // 🔹 Delete All
-        IconButton(
-          tooltip: "Supprimer tous",
-          icon: const Icon(Icons.delete),
-          onPressed: () {
-            showDialog<bool>(
-              context: context,
-              builder: (BuildContext ctx) {
-                return AlertDialog(
-                  title: const Text("Confirmer"),
-                  content: const Text("Supprimer tous les utilisateurs ?"),
-                  actions: [
-                    TextButton(
-                      onPressed: () => Navigator.pop(ctx, false),
-                      child: const Text("Annuler"),
-                    ),
-                    TextButton(
-                      onPressed: () {
-                        Navigator.pop(ctx, true);
-                        _deleteAllUsers(ctx); // tout safe ici
-                      },
-                      child: const Text("Oui"),
-                    ),
-                  ],
-                );
-              },
-            );
-          },
-        ),
-
-        // 🔹 Close
-        IconButton(
-          icon: const Icon(Icons.close),
-          onPressed: () {
-            Navigator.pop(context);
-          },
-        ),
-      ],
-    ),
-  ],
-),
-// FIN HEADER
+            /// HEADER
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text(
+                  "Gestion des utilisateurs",
+                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.close),
+                  onPressed: () => Navigator.pop(context),
+                )
+              ],
+            ),
 
             const SizedBox(height: 10),
 
-            /// FILTRE ROLE
+            /// SEARCH + FILTER
             Row(
               children: [
-                const Text("Filtrer par rôle: "),
+                Expanded(
+                  child: TextField(
+                    decoration: const InputDecoration(
+                      hintText: "Rechercher utilisateur...",
+                      prefixIcon: Icon(Icons.search),
+                      border: OutlineInputBorder(),
+                    ),
+                    onChanged: onSearchChanged,
+                  ),
+                ),
                 const SizedBox(width: 10),
                 DropdownButton<String>(
                   value: selectedRole,
                   items: const [
                     DropdownMenuItem(value: 'all', child: Text("Tous")),
-                    DropdownMenuItem(value: 'admin', child: Text("Admin (root)")),
+                    DropdownMenuItem(value: 'admin', child: Text("Admin")),
                     DropdownMenuItem(value: 'subadmin', child: Text("Sub Admin")),
                     DropdownMenuItem(value: 'restaurant', child: Text("Restaurant")),
+                    DropdownMenuItem(value: 'disabled', child: Text("Disabled")),
                   ],
                   onChanged: (value) {
                     setState(() => selectedRole = value!);
-                    loadUsers();
+                    loadUsers(reset: true);
                   },
                 ),
               ],
@@ -289,90 +255,127 @@ Row(
 
             const SizedBox(height: 10),
 
-            /// LISTE
-           Expanded(
-  child: isLoading
-      ? const Center(child: CircularProgressIndicator())
-      : users.isEmpty
-          ? const Center(child: Text("Aucun utilisateur"))
-          : ListView.builder(
-              itemCount: users.length,
-              itemBuilder: (context, index) {
-                final user = users[index];
-                final devicesRaw = user['devices'];
-                final List devices = devicesRaw is List
-                    ? devicesRaw
-                    : devicesRaw != null
-                        ? [devicesRaw]
-                        : [];
+            /// LIST
+            Expanded(
+              child: users.isEmpty && isLoading
+                  ? const Center(child: CircularProgressIndicator())
+                  : ListView.builder(
+                      controller: _scrollController,
+                      itemCount: users.length + (hasMore ? 1 : 0),
+                      itemBuilder: (context, index) {
 
-                // Pour restaurant : pas d'email → afficher matricule
-                final String mainInfo = (user['email'] != null && user['email'].toString().isNotEmpty)
-                    ? user['email']
-                    : "Matricule: ${user['matricule']}";
+                        if (index >= users.length) {
+                          return const Padding(
+                            padding: EdgeInsets.all(16),
+                            child: Center(child: CircularProgressIndicator()),
+                          );
+                        }
 
-                return Card(
-                  margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
-                  child: ExpansionTile(
-                    title: Text(
-                      "${user['prenom']} ${user['nom']}",
-                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-                    ),
-                    subtitle: Text(mainInfo),
-                    children: [
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            // Rôle
-                            Text("Role: ${user['role']}"),
-                            const SizedBox(height: 8),
+                        final user = users[index];
+                        final devices = (user['devices'] ?? []) as List;
 
-                            // Devices
-                            devices.isEmpty
-                                ? const Text("Aucun device")
-                                : Column(
-                                    children: devices.map<Widget>((device) {
-                                      return Row(
-                                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                        children: [
-                                          Text("Device: ${device['device_name']}"),
-                                          Text("Last seen: ${device['last_seen'] ?? 'N/A'}"),
-                                          Text("Actif: ${device['is_active'] == true ? 'Oui' : 'Non'}"),
-                                          Row(
-                                            children: [
-                                              IconButton(
-                                                icon: const Icon(Icons.logout),
-                                                onPressed: () {
-                                                  disconnectDevice(device['device_id']);
-                                                },
-                                              ),
-                                              IconButton(
-                                                icon: const Icon(Icons.delete),
-                                                onPressed: () {
-                                                  deleteDevice(device['device_id']);
-                                                },
-                                              ),
-                                            ],
+                        final isOnline = isUserOnline(devices);
+                        final isDisabled = user['role'] == 'disabled';
+
+                        final mainInfo =
+                            (user['email'] != null && user['email'].toString().isNotEmpty)
+                                ? user['email']
+                                : "Matricule: ${user['matricule']}";
+
+                        return Card(
+                          color: isDisabled ? Colors.red.shade100 : null,
+                          margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 10),
+                          child: ExpansionTile(
+                            title: Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text("${user['prenom']} ${user['nom']}"),
+                                buildStatusBadge(isOnline),
+                              ],
+                            ),
+                            subtitle: Text(mainInfo),
+                            children: [
+                              Padding(
+                                padding: const EdgeInsets.all(10),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+
+                                    /// ROLE + ACTION
+                                    Row(
+                                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                      children: [
+                                        Text("Role: ${user['role']}"),
+                                        IconButton(
+                                          icon: Icon(
+                                            Icons.block,
+                                            color: isDisabled
+                                                ? Colors.green
+                                                : Colors.red,
                                           ),
-                                        ],
-                                      );
-                                    }).toList(),
-                                  ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                );
-              },
+                                          onPressed: () {
+                                            toggleUserStatus(
+                                                user['matricule'],
+                                                user['role']);
+                                          },
+                                        ),
+                                      ],
+                                    ),
+
+                                    const SizedBox(height: 10),
+
+                                    /// DEVICES
+                                    devices.isEmpty
+                                        ? const Text("Aucun device")
+                                        : Column(
+                                            children: devices.map<Widget>((device) {
+                                              return Row(
+                                                mainAxisAlignment:
+                                                    MainAxisAlignment.spaceBetween,
+                                                children: [
+                                                  Text(device['device_name'] ?? ''),
+                                                  Text("Actif: ${device['is_active'] ? 'Oui' : 'Non'}"),
+                                                  Row(
+                                                    children: [
+                                                      IconButton(
+                                                        icon: const Icon(Icons.logout),
+                                                        onPressed: () {
+                                                          disconnectDevice(
+                                                              device['device_id']);
+                                                        },
+                                                      ),
+                                                      IconButton(
+                                                        icon: const Icon(Icons.delete),
+                                                        onPressed: () {
+                                                          deleteDevice(
+                                                              device['device_id']);
+                                                        },
+                                                      ),
+                                                    ],
+                                                  ),
+                                                ],
+                                              );
+                                            }).toList(),
+                                          ),
+                                  ],
+                                ),
+                              )
+                            ],
+                          ),
+                        );
+                      },
+                    ),
             ),
-           )
           ],
         ),
       ),
     );
   }
-}
 
+  @override
+  void dispose() {
+    _debounce?.cancel();
+    _scrollController.dispose();
+    super.dispose();
+  }
+}
