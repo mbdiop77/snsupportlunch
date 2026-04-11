@@ -17,7 +17,7 @@ class _UsersManagementDialogState extends State<UsersManagementDialog> {
   bool isLoading = true;
 
   /// 🔥 DEFAULT = employee
-  String selectedRole = 'employee';
+  String selectedRole = 'employe';
   String searchQuery = '';
 
   int page = 0;
