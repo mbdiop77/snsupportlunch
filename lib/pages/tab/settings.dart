@@ -37,7 +37,7 @@ class _SettingPageState extends State<SettingPage> {
     final data = await supabase
         .from('employees')
         .select('email, prenom, role')
-        .or('role.eq.admin,role.eq.subadmin,role.eq.employe,role.eq.restaurant')
+        .or('role.eq.admin,role.eq.subadmin')
         .order('prenom');
 
     if (!mounted) return;
@@ -241,8 +241,12 @@ class _SettingPageState extends State<SettingPage> {
                         child: Padding(
                           padding: const EdgeInsets.all(10),
                           child: Column(
-                            children: admins.map((admin) {
-                              final fullName = (admin['prenom'] ?? '').toString();
+                            children: admins
+                            .where((admin) =>
+                                admin['role'] == 'admin' ||
+                                admin['role'] == 'subadmin')
+                            .map((admin) {
+                             final fullName = (admin['prenom'] ?? '').toString();
                               final roleText = (admin['role'] ?? '').toString();
 
                               final displayName =
