@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+
 import '../../features/users.dart';
+
 class SettingPage extends StatefulWidget {
   final Map currentAdmin;
   const SettingPage({super.key, required this.currentAdmin});
@@ -15,11 +17,8 @@ class _SettingPageState extends State<SettingPage> {
   List<Map<String, dynamic>> admins = [];
   bool isLoading = true;
 
-  // Controllers
   final TextEditingController emailController = TextEditingController();
-  //final TextEditingController matriculeController = TextEditingController();
   final TextEditingController prenomController = TextEditingController();
-  //final TextEditingController nomController = TextEditingController();
 
   String role = 'admin';
   bool isSubmitting = false;
@@ -31,12 +30,14 @@ class _SettingPageState extends State<SettingPage> {
     listenToChanges();
   }
 
-  /// 🔄 Charger admins (AVEC sub_admin)
+  /// ===========================
+  /// LOAD ADMINS
+  /// ===========================
   Future<void> loadAdmins() async {
     final data = await supabase
         .from('employees')
-        .select()
-        .or('role.eq.admin,role.eq.sub_admin,role.eq.disabled')
+        .select('email, prenom, role')
+        .or('role.eq.admin,role.eq.subadmin,role.eq.employe,role.eq.restaurant')
         .order('prenom');
 
     if (!mounted) return;
@@ -47,7 +48,9 @@ class _SettingPageState extends State<SettingPage> {
     });
   }
 
-  /// 🔄 Realtime
+  /// ===========================
+  /// REALTIME
+  /// ===========================
   void listenToChanges() {
     supabase.channel('employees_channel').onPostgresChanges(
       event: PostgresChangeEvent.all,
@@ -57,11 +60,32 @@ class _SettingPageState extends State<SettingPage> {
     ).subscribe();
   }
 
-  /// ➕ Ajouter admin
+  /// ===========================
+  /// EMAIL VALIDATION
+  /// ===========================
+  bool isValidEmail(String email) {
+    return email.contains('@') && email.contains('.');
+  }
+
+  /// ===========================
+  /// ADD USER
+  /// ===========================
   Future<void> addAdmin() async {
-    if (prenomController.text.trim().isEmpty || emailController.text.trim().isEmpty) {
+    final email = emailController.text.trim();
+    final prenom = prenomController.text.trim();
+
+    /// 🔐 VALIDATION
+    if (email.isEmpty || prenom.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text(" Full name obligatoire !")),
+        const SnackBar(
+            content: Text("Email et prénom sont obligatoires")),
+      );
+      return;
+    }
+
+    if (!isValidEmail(email)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Email invalide")),
       );
       return;
     }
@@ -70,21 +94,22 @@ class _SettingPageState extends State<SettingPage> {
 
     try {
       await supabase.from('employees').insert({
-        'email': emailController.text.trim(), 
-        'prenom': prenomController.text.trim(),
+        'email': email,
+        'prenom': prenom,
         'role': role,
       });
 
       if (!mounted) return;
 
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Ajout réussi !")),
+        const SnackBar(content: Text("Utilisateur ajouté")),
       );
 
-      // reset
       emailController.clear();
       prenomController.clear();
+
       setState(() => role = 'admin');
+      loadAdmins();
     } catch (e) {
       if (!mounted) return;
 
@@ -96,151 +121,54 @@ class _SettingPageState extends State<SettingPage> {
     if (mounted) setState(() => isSubmitting = false);
   }
 
-  /// 🔐 Logout via device
-  Future<void> logoutAdmin(String matricule) async {
-    try {
-      await supabase
-          .from('devices')
-          .delete()
-          .eq('employee_matricule', matricule);
-
-      if (!mounted) return;
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Déconnecté !")),
-      );
-    } catch (e) {
-      if (!mounted) return;
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Erreur : $e")),
-      );
-    }
-  }
-
-  /// ❌ Delete
-  Future<void> deleteAdmin(String matricule) async {
-    try {
-      await supabase.from('employees').delete().eq('matricule', matricule);
-
-      if (!mounted) return;
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Supprimé : $matricule")),
-      );
-    } catch (e) {
-      if (!mounted) return;
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Erreur : $e")),
-      );
-    }
-  }
-
-  Future<void> confirmDelete(String matricule) async {
-    final confirm = await showDialog<bool>(
-      context: context,
-      builder: (_) => AlertDialog(
-        title: const Text("Confirmation"),
-        content: Text("Supprimer $matricule ?"),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(context, false),
-              child: const Text("Annuler")),
-          ElevatedButton(
-              onPressed: () => Navigator.pop(context, true),
-              child: const Text("Supprimer")),
-        ],
-      ),
-    );
-
-    if (confirm == true) deleteAdmin(matricule);
-  }
-
-  /// 🔁 Activer / désactiver
-  Future<void> toggleAdmin(String matricule, String currentRole) async {
-    try {
-      final newRole = currentRole == 'disabled' ? 'admin' : 'disabled';
-
-      await supabase
-          .from('employees')
-          .update({'role': newRole})
-          .eq('matricule', matricule);
-
-      if (!mounted) return;
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("$matricule → $newRole")),
-      );
-    } catch (e) {
-      if (!mounted) return;
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Erreur : $e")),
-      );
-    }
-  }
-
-  /// 🔒 Protection
-  bool canModifyAdmin(Map admin,
-      {bool forDelete = false, bool forLogout = false}) {
-    final isCurrent =
-        admin['matricule'] == widget.currentAdmin['matricule'];
-
-    if (isCurrent && (forDelete || forLogout)) return false;
-
-    return true;
-  }
-
+  /// ===========================
+  /// UI
+  /// ===========================
   @override
   Widget build(BuildContext context) {
     final isAdmin = widget.currentAdmin['role'] == 'admin';
-    if (!isAdmin) { 
 
-  if (!isAdmin) {
-    return Scaffold(
-     // appBar: AppBar(title: const Text("Paramètres")),
-      body: const Center(
-        child: Text(
-          "Contenu inaccessible",
-          style: TextStyle(fontSize: 16, color: Colors.red),
+    if (!isAdmin) {
+      return const Scaffold(
+        body: Center(
+          child: Text(
+            "Contenu inaccessible",
+            style: TextStyle(fontSize: 16, color: Colors.red),
+          ),
         ),
-      ),
-    );
-  }
-
-  // Si admin, afficher le contenu normal
+      );
     }
+
     return Scaffold(
       appBar: AppBar(
-  title: const Text("Gestion des Admins"),
-  actions: [
-    Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 8),
-      child: ElevatedButton.icon(
-        icon: const Icon(Icons.people),
-        label: const Text("Utilisateurs"),
-        onPressed: () {
-          showDialog<void>(
-            context: context,
-            builder: (BuildContext context) {
-              return const UsersManagementDialog();
-            },
-          );
-        },
+        title: const Text("Gestion des utilisateurs"),
+        actions: [
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 8),
+            child: ElevatedButton.icon(
+              icon: const Icon(Icons.people),
+              label: const Text("Utilisateurs"),
+              onPressed: () {
+                showDialog(
+                  context: context,
+                  builder: (context) => const UsersManagementDialog(),
+                );
+              },
+            ),
+          ),
+        ],
       ),
-    ),
-  ],
-),
-      
+
       body: isLoading
           ? const Center(child: CircularProgressIndicator())
           : SingleChildScrollView(
-              padding: const EdgeInsets.all(5),
+              padding: const EdgeInsets.all(10),
               child: Column(
                 children: [
 
-                  /// 🧾 FORMULAIRE
+                  /// ===========================
+                  /// FORMULAIRE
+                  /// ===========================
                   Card(
                     child: Padding(
                       padding: const EdgeInsets.all(10),
@@ -250,19 +178,19 @@ class _SettingPageState extends State<SettingPage> {
                           TextField(
                             controller: emailController,
                             decoration: const InputDecoration(
-                                labelText: 'Email'),
+                              labelText: 'Email',
+                            ),
                           ),
 
-                          
                           TextField(
                             controller: prenomController,
                             decoration: const InputDecoration(
-                                labelText: 'Full name '),
+                              labelText: 'Prénom',
+                            ),
                           ),
 
-                          const SizedBox(height: 5),
+                          const SizedBox(height: 10),
 
-                          /// ✅ DROPDOWN AVEC SUB ADMIN
                           DropdownButtonFormField<String>(
                             initialValue: role,
                             items: const [
@@ -281,16 +209,18 @@ class _SettingPageState extends State<SettingPage> {
                             onChanged: (v) {
                               if (v != null) setState(() => role = v);
                             },
-                            decoration:
-                                const InputDecoration(labelText: 'Rôle'),
+                            decoration: const InputDecoration(
+                              labelText: 'Rôle',
+                            ),
                           ),
 
-                          const SizedBox(height: 5),
+                          const SizedBox(height: 10),
 
                           ElevatedButton(
                             onPressed: isSubmitting ? null : addAdmin,
                             child: Text(
-                                isSubmitting ? "Ajout..." : "Ajouter"),
+                              isSubmitting ? "Ajout..." : "Ajouter",
+                            ),
                           ),
                         ],
                       ),
@@ -299,45 +229,20 @@ class _SettingPageState extends State<SettingPage> {
 
                   const SizedBox(height: 20),
 
-                  /// 📋 LISTE (sans toList)
+                  /// ===========================
+                  /// LISTE UTILISATEURS
+                  /// ===========================
                   ...admins.map((admin) {
-                    final fullName = [
-                      admin['prenom'],
-                      admin['nom']
-                    ]
-                        .where((e) =>
-                            e != null &&
-                            e.toString().trim().isNotEmpty)
-                        .join(' ');
+                    final fullName = (admin['prenom'] ?? '').toString();
 
-                    return ListTile(
-                      title: Text(fullName),
-                      subtitle:
-                          Text("Matricule: ${admin['matricule']}"),
-                      trailing: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
+                    final roleText = admin['role'] ?? '';
 
-                          IconButton(
-                            icon: const Icon(Icons.logout,
-                                color: Colors.orange),
-                            onPressed: canModifyAdmin(admin,
-                                    forLogout: true)
-                                ? () =>
-                                    logoutAdmin(admin['matricule'])
-                                : null,
-                          ),
-
-                          IconButton(
-                            icon: const Icon(Icons.delete,
-                                color: Colors.red),
-                            onPressed: canModifyAdmin(admin,
-                                    forDelete: true)
-                                ? () => confirmDelete(
-                                    admin['matricule'])
-                                : null,
-                          ),
-                        ],
+                    return Card(
+                      child: ListTile(
+                        title: Text(fullName),
+                        subtitle: Text(
+                          "${admin['email']} ($roleText)",
+                        ),
                       ),
                     );
                   }),
@@ -345,5 +250,12 @@ class _SettingPageState extends State<SettingPage> {
               ),
             ),
     );
+  }
+
+  @override
+  void dispose() {
+    emailController.dispose();
+    prenomController.dispose();
+    super.dispose();
   }
 }
