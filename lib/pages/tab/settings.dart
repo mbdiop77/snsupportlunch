@@ -235,13 +235,13 @@ class _SettingPageState extends State<SettingPage> {
                   ...admins.map((admin) {
                     final fullName = (admin['prenom'] ?? '').toString();
 
-                    final roleText = admin['role'] ?? '';
+                  //  final roleText = admin['role'] ?? '';
 
                     return Card(
                       child: ListTile(
                         title: Text(fullName),
                         subtitle: Text(
-                          "${admin['email']} ($roleText)",
+                          "${admin['email']} ${(admin['role'])}",
                         ),
                       ),
                     );
