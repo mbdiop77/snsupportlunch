@@ -162,7 +162,7 @@ class _UsersManagementDialogState extends State<UsersManagementDialog> {
                 DropdownButton<String>(
                   value: selectedRole,
                   items: const [
-                    DropdownMenuItem(value: 'employe', child: Text("Employes")),
+                    DropdownMenuItem(value: 'employe', child: Text("Employees")),
                     DropdownMenuItem(value: 'admin', child: Text("Admin")),
                     DropdownMenuItem(value: 'subadmin', child: Text("Sub Admin")),
                     DropdownMenuItem(value: 'restaurant', child: Text("Restaurant")),
