@@ -78,7 +78,7 @@ class _SettingPageState extends State<SettingPage> {
     if (email.isEmpty || prenom.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-            content: Text("Email et prénom sont obligatoires")),
+            content: Text("Email et full name sont obligatoires")),
       );
       return;
     }
@@ -185,7 +185,7 @@ class _SettingPageState extends State<SettingPage> {
                           TextField(
                             controller: prenomController,
                             decoration: const InputDecoration(
-                              labelText: 'Prénom',
+                              labelText: 'Full name',
                             ),
                           ),
 
@@ -195,16 +195,16 @@ class _SettingPageState extends State<SettingPage> {
                             initialValue: role,
                             items: const [
                               DropdownMenuItem(
+                                  value: 'restaurant',
+                                  child: Text('Restaurant')),
+                              DropdownMenuItem(
                                   value: 'admin', child: Text('Admin')),
                               DropdownMenuItem(
                                   value: 'subadmin',
                                   child: Text('Sub Admin')),
                               DropdownMenuItem(
                                   value: 'employe',
-                                  child: Text('Employé')),
-                              DropdownMenuItem(
-                                  value: 'restaurant',
-                                  child: Text('Restaurant')),
+                                  child: Text('Employe')),
                             ],
                             onChanged: (v) {
                               if (v != null) setState(() => role = v);
@@ -232,20 +232,26 @@ class _SettingPageState extends State<SettingPage> {
                   /// ===========================
                   /// LISTE UTILISATEURS
                   /// ===========================
-                  ...admins.map((admin) {
-                    final fullName = (admin['prenom'] ?? '').toString();
+                  
+                  Card(
+                    child: Padding(
+                      padding: const EdgeInsets.all(10),
+                      child: Column(
+                        children: admins.map((admin) {
+                          final fullName = (admin['prenom'] ?? '').toString();
+                          final roleText = (admin['role'] ?? '').toString();
 
-                  //  final roleText = admin['role'] ?? '';
+                          final displayName =
+                              "$fullName ${roleText.isNotEmpty ? '($roleText)' : ''}";
 
-                    return Card(
-                      child: ListTile(
-                        title: Text(fullName),
-                        subtitle: Text(
-                          "${admin['email']} ${(admin['role'])}",
-                        ),
+                          return ListTile(
+                            title: Text(displayName),
+                            subtitle: Text(admin['email'] ?? ''),
+                          );
+                        }).toList(),
                       ),
-                    );
-                  }),
+                    ),
+                  )
                 ],
               ),
             ),
