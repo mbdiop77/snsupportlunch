@@ -30,9 +30,6 @@ class _SettingPageState extends State<SettingPage> {
     listenToChanges();
   }
 
-  /// ===========================
-  /// LOAD ADMINS
-  /// ===========================
   Future<void> loadAdmins() async {
     final data = await supabase
         .from('employees')
@@ -48,9 +45,6 @@ class _SettingPageState extends State<SettingPage> {
     });
   }
 
-  /// ===========================
-  /// REALTIME
-  /// ===========================
   void listenToChanges() {
     supabase.channel('employees_channel').onPostgresChanges(
       event: PostgresChangeEvent.all,
@@ -60,25 +54,17 @@ class _SettingPageState extends State<SettingPage> {
     ).subscribe();
   }
 
-  /// ===========================
-  /// EMAIL VALIDATION
-  /// ===========================
   bool isValidEmail(String email) {
     return email.contains('@') && email.contains('.');
   }
 
-  /// ===========================
-  /// ADD USER
-  /// ===========================
   Future<void> addAdmin() async {
     final email = emailController.text.trim();
     final prenom = prenomController.text.trim();
 
-    /// 🔐 VALIDATION
     if (email.isEmpty || prenom.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-            content: Text("Email et full name sont obligatoires")),
+        const SnackBar(content: Text("Email et full name sont obligatoires")),
       );
       return;
     }
@@ -107,8 +93,8 @@ class _SettingPageState extends State<SettingPage> {
 
       emailController.clear();
       prenomController.clear();
-
       setState(() => role = 'admin');
+
       loadAdmins();
     } catch (e) {
       if (!mounted) return;
@@ -121,9 +107,6 @@ class _SettingPageState extends State<SettingPage> {
     if (mounted) setState(() => isSubmitting = false);
   }
 
-  /// ===========================
-  /// UI
-  /// ===========================
   @override
   Widget build(BuildContext context) {
     final isAdmin = widget.currentAdmin['role'] == 'admin';
@@ -138,6 +121,13 @@ class _SettingPageState extends State<SettingPage> {
         ),
       );
     }
+
+    /// ✅ CORRECTION ICI (BON ENDROIT)
+    final filteredAdmins = admins
+        .where((admin) =>
+            admin['role'] == 'admin' ||
+            admin['role'] == 'subadmin')
+        .toList();
 
     return Scaffold(
       appBar: AppBar(
@@ -166,29 +156,22 @@ class _SettingPageState extends State<SettingPage> {
               child: Column(
                 children: [
 
-                  /// ===========================
                   /// FORMULAIRE
-                  /// ===========================
                   Card(
                     child: Padding(
                       padding: const EdgeInsets.all(10),
                       child: Column(
                         children: [
-
                           TextField(
                             controller: emailController,
-                            decoration: const InputDecoration(
-                              labelText: 'Email',
-                            ),
+                            decoration:
+                                const InputDecoration(labelText: 'Email'),
                           ),
-
                           TextField(
                             controller: prenomController,
-                            decoration: const InputDecoration(
-                              labelText: 'Full name',
-                            ),
+                            decoration:
+                                const InputDecoration(labelText: 'Full name'),
                           ),
-
                           const SizedBox(height: 10),
 
                           DropdownButtonFormField<String>(
@@ -209,9 +192,8 @@ class _SettingPageState extends State<SettingPage> {
                             onChanged: (v) {
                               if (v != null) setState(() => role = v);
                             },
-                            decoration: const InputDecoration(
-                              labelText: 'Rôle',
-                            ),
+                            decoration:
+                                const InputDecoration(labelText: 'Rôle'),
                           ),
 
                           const SizedBox(height: 10),
@@ -219,8 +201,7 @@ class _SettingPageState extends State<SettingPage> {
                           ElevatedButton(
                             onPressed: isSubmitting ? null : addAdmin,
                             child: Text(
-                              isSubmitting ? "Ajout..." : "Ajouter",
-                            ),
+                                isSubmitting ? "Ajout..." : "Ajouter"),
                           ),
                         ],
                       ),
@@ -229,39 +210,123 @@ class _SettingPageState extends State<SettingPage> {
 
                   const SizedBox(height: 20),
 
-                  /// ===========================
-                  /// LISTE UTILISATEURS
-                  /// ===========================
-                    Center(
+                  /// LISTE ADMIN
+                  Center(
                     child: ConstrainedBox(
-                      constraints: const BoxConstraints(
-                        maxWidth: 600, // 👈 largeur max
-                      ),
+                      constraints: const BoxConstraints(maxWidth: 600),
                       child: Card(
                         child: Padding(
                           padding: const EdgeInsets.all(10),
                           child: Column(
-                            children: admins
-                            .where((admin) =>
-                                admin['role'] == 'admin' ||
-                                admin['role'] == 'subadmin')
-                            .map((admin) {
-                             final fullName = (admin['prenom'] ?? '').toString();
-                              final roleText = (admin['role'] ?? '').toString();
+                            children: List.generate(
+                                filteredAdmins.length, (index) {
+                              final admin = filteredAdmins[index];
 
-                              final displayName =
-                                  "$fullName ${roleText.isNotEmpty ? '($roleText)' : ''}";
+                              final fullName =
+                                  (admin['prenom'] ?? '').toString();
+                              final roleText =
+                                  (admin['role'] ?? '').toString();
+                              final mail =
+                                  (admin['email'] ?? '').toString();
 
-                              return ListTile(
-                                title: Text(displayName),
-                                subtitle: Text(admin['email'] ?? ''),
+                              Color roleColor;
+                              switch (roleText) {
+                                case 'admin':
+                                  roleColor = Colors.red;
+                                  break;
+                                case 'subadmin':
+                                  roleColor = Colors.orange;
+                                  break;
+                                default:
+                                  roleColor = Colors.grey;
+                              }
+
+                              return Column(
+                                children: [
+                                  Padding(
+                                    padding: const EdgeInsets.symmetric(
+                                        vertical: 10),
+                                    child: Row(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.spaceBetween,
+                                      children: [
+
+                                        /// LEFT
+                                        Expanded(
+                                          child: Row(
+                                            children: [
+                                              const Icon(
+                                                Icons.admin_panel_settings,
+                                                size: 20,
+                                                color: Colors.blue,
+                                              ),
+                                              const SizedBox(width: 8),
+
+                                              Expanded(
+                                                child: Row(
+                                                  children: [
+                                                    Expanded(
+                                                      child: Text(
+                                                        fullName,
+                                                        style:
+                                                            const TextStyle(
+                                                          fontWeight:
+                                                              FontWeight.bold,
+                                                        ),
+                                                      ),
+                                                    ),
+
+                                                    /// BADGE
+                                                    Container(
+                                                      padding:
+                                                          const EdgeInsets
+                                                              .symmetric(
+                                                              horizontal: 8,
+                                                              vertical: 2),
+                                                      decoration: BoxDecoration(
+                                                        color: roleColor,
+                                                        borderRadius:
+                                                            BorderRadius
+                                                                .circular(10),
+                                                      ),
+                                                      child: Text(
+                                                        roleText,
+                                                        style:
+                                                            const TextStyle(
+                                                          color: Colors.white,
+                                                          fontSize: 11,
+                                                        ),
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+
+                                        /// RIGHT
+                                        Text(
+                                          mail,
+                                          style: const TextStyle(
+                                            color: Colors.grey,
+                                            fontSize: 13,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+
+                                  if (index != filteredAdmins.length - 1)
+                                    const Divider(height: 1),
+                                ],
                               );
-                            }).toList(),
+                            }),
                           ),
                         ),
                       ),
                     ),
-                  )
+                  ),
                 ],
               ),
             ),
