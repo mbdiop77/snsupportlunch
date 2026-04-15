@@ -16,7 +16,6 @@ class _UsersManagementDialogState extends State<UsersManagementDialog> {
   List<Map<String, dynamic>> users = [];
   bool isLoading = true;
 
-  /// 🔥 DEFAULT = employee
   String selectedRole = 'employe';
   String searchQuery = '';
 
@@ -26,6 +25,13 @@ class _UsersManagementDialogState extends State<UsersManagementDialog> {
 
   Timer? _debounce;
   final ScrollController _scrollController = ScrollController();
+
+  final List<String> roles = [
+    'employe',
+    'admin',
+    'subadmin',
+    'restaurant'
+  ];
 
   @override
   void initState() {
@@ -41,7 +47,7 @@ class _UsersManagementDialogState extends State<UsersManagementDialog> {
   }
 
   /// ===========================
-  /// LOAD USERS (CLEAN VERSION)
+  /// LOAD USERS
   /// ===========================
   Future<void> loadUsers({bool reset = false}) async {
     try {
@@ -57,12 +63,10 @@ class _UsersManagementDialogState extends State<UsersManagementDialog> {
 
       var query = supabase
           .from('employees')
-          .select('matricule, prenom, nom, email, role, status');
+          .select('matricule, prenom, email, role, status');
 
-      /// ✅ filtre ROLE (OBLIGATOIRE)
       query = query.eq('role', selectedRole);
 
-      /// ✅ SEARCH SAFE
       if (searchQuery.trim().isNotEmpty) {
         final search = searchQuery.trim();
 
@@ -74,8 +78,10 @@ class _UsersManagementDialogState extends State<UsersManagementDialog> {
         );
       }
 
-      final response = await query
-          .range(page * limit, (page + 1) * limit - 1);
+      final response = await query.range(
+        page * limit,
+        (page + 1) * limit - 1,
+      );
 
       final newUsers = List<Map<String, dynamic>>.from(response);
 
@@ -91,7 +97,7 @@ class _UsersManagementDialogState extends State<UsersManagementDialog> {
   }
 
   /// ===========================
-  /// SEARCH DEBOUNCE
+  /// SEARCH
   /// ===========================
   void onSearchChanged(String value) {
     if (_debounce?.isActive ?? false) _debounce!.cancel();
@@ -103,12 +109,24 @@ class _UsersManagementDialogState extends State<UsersManagementDialog> {
   }
 
   /// ===========================
-  /// STATUS USER
+  /// TOGGLE STATUS
   /// ===========================
   Future<void> toggleUserStatus(String matricule, bool currentStatus) async {
     await supabase
         .from('employees')
         .update({'status': !currentStatus})
+        .eq('matricule', matricule);
+
+    loadUsers(reset: true);
+  }
+
+  /// ===========================
+  /// CHANGE ROLE (NEW 🔥)
+  /// ===========================
+  Future<void> updateUserRole(String matricule, String newRole) async {
+    await supabase
+        .from('employees')
+        .update({'role': newRole})
         .eq('matricule', matricule);
 
     loadUsers(reset: true);
@@ -133,7 +151,8 @@ class _UsersManagementDialogState extends State<UsersManagementDialog> {
               children: [
                 const Text(
                   "Gestion des utilisateurs",
-                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                  style: TextStyle(
+                      fontSize: 20, fontWeight: FontWeight.bold),
                 ),
                 IconButton(
                   icon: const Icon(Icons.close),
@@ -144,13 +163,13 @@ class _UsersManagementDialogState extends State<UsersManagementDialog> {
 
             const SizedBox(height: 10),
 
-            /// SEARCH + ROLE FILTER
+            /// SEARCH + FILTER ROLE
             Row(
               children: [
                 Expanded(
                   child: TextField(
                     decoration: const InputDecoration(
-                      hintText: "Rechercher (matricule, email, nom...)",
+                      hintText: "Rechercher (email, full name)",
                       prefixIcon: Icon(Icons.search),
                       border: OutlineInputBorder(),
                     ),
@@ -161,12 +180,12 @@ class _UsersManagementDialogState extends State<UsersManagementDialog> {
 
                 DropdownButton<String>(
                   value: selectedRole,
-                  items: const [
-                    DropdownMenuItem(value: 'employe', child: Text("Employees")),
-                    DropdownMenuItem(value: 'admin', child: Text("Admin")),
-                    DropdownMenuItem(value: 'subadmin', child: Text("Sub Admin")),
-                    DropdownMenuItem(value: 'restaurant', child: Text("Restaurant")),
-                  ],
+                  items: roles
+                      .map((r) => DropdownMenuItem(
+                            value: r,
+                            child: Text(r.toUpperCase()),
+                          ))
+                      .toList(),
                   onChanged: (value) {
                     setState(() => selectedRole = value!);
                     loadUsers(reset: true);
@@ -187,33 +206,65 @@ class _UsersManagementDialogState extends State<UsersManagementDialog> {
                           controller: _scrollController,
                           itemCount: users.length + (hasMore ? 1 : 0),
                           itemBuilder: (context, index) {
-
                             if (index >= users.length) {
                               return const Padding(
                                 padding: EdgeInsets.all(16),
-                                child: Center(child: CircularProgressIndicator()),
+                                child: Center(
+                                    child: CircularProgressIndicator()),
                               );
                             }
 
                             final user = users[index];
                             final isActive = user['status'] == true;
 
-                            final mainInfo =
-                                (user['email'] != null &&
-                                        user['email'].toString().isNotEmpty)
-                                    ? user['email']
-                                    : "Matricule: ${user['matricule']}";
-
                             return Card(
-                              color: isActive ? null : Colors.red.shade100,
+                              color: isActive
+                                  ? null
+                                  : Colors.red.shade100,
                               margin: const EdgeInsets.symmetric(
                                   vertical: 8, horizontal: 10),
                               child: ListTile(
                                 title: Text(
-                                  "${user['prenom']} ${user['nom']}",
-                                  style: const TextStyle(fontWeight: FontWeight.bold),
+                                  user['prenom'] ?? '',
+                                  style: const TextStyle(
+                                      fontWeight: FontWeight.bold),
                                 ),
-                                subtitle: Text(mainInfo),
+
+                                subtitle: Column(
+                                  crossAxisAlignment:
+                                      CrossAxisAlignment.start,
+                                  children: [
+                                    Text(user['email'] ?? ''),
+                                    const SizedBox(height: 5),
+
+                                    /// 🔥 ROLE DROPDOWN PER USER
+                                    Row(
+                                      children: [
+                                        const Text("Role: "),
+                                        const SizedBox(width: 10),
+
+                                        DropdownButton<String>(
+                                          value: user['role'],
+                                          items: roles
+                                              .map((r) => DropdownMenuItem(
+                                                    value: r,
+                                                    child: Text(r),
+                                                  ))
+                                              .toList(),
+                                          onChanged: (newRole) {
+                                            if (newRole != null) {
+                                              updateUserRole(
+                                                user['matricule'],
+                                                newRole,
+                                              );
+                                            }
+                                          },
+                                        ),
+                                      ],
+                                    ),
+                                  ],
+                                ),
+
                                 trailing: Row(
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
