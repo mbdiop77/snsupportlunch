@@ -20,7 +20,7 @@ class _SettingPageState extends State<SettingPage> {
   final TextEditingController emailController = TextEditingController();
   final TextEditingController prenomController = TextEditingController();
 
-  String role = 'admin';
+  String role = 'restaurant';
   bool isSubmitting = false;
 
   @override
