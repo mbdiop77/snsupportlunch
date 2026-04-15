@@ -109,11 +109,11 @@ class _UsersManagementDialogState extends State<UsersManagementDialog> {
   /// ===========================
   /// TOGGLE STATUS
   /// ===========================
-  Future<void> toggleUserStatus(String matricule, bool currentStatus) async {
+  Future<void> toggleUserStatus(String email, bool currentStatus) async {
     await supabase
         .from('employees')
         .update({'status': !currentStatus})
-        .eq('matricule', matricule);
+        .eq('email', email);
 
     loadUsers(reset: true);
   }
@@ -121,11 +121,11 @@ class _UsersManagementDialogState extends State<UsersManagementDialog> {
   /// ===========================
   /// CHANGE ROLE (NEW 🔥)
   /// ===========================
-  Future<void> updateUserRole(String matricule, String newRole) async {
+  Future<void> updateUserRole(String email, String newRole) async {
     await supabase
         .from('employees')
         .update({'role': newRole})
-        .eq('matricule', matricule);
+        .eq('email', email);
 
     loadUsers(reset: true);
   }
@@ -238,7 +238,7 @@ class _UsersManagementDialogState extends State<UsersManagementDialog> {
                                                   ),
                                                 ),
                                                 Text(
-                                                  "(${user['email'] ?? ''})",
+                                                  "${user['email'] ?? ''}",
                                                   style: const TextStyle(
                                                     color: Colors.grey,
                                                   ),
@@ -265,7 +265,7 @@ class _UsersManagementDialogState extends State<UsersManagementDialog> {
                                                 onChanged: (newRole) {
                                                   if (newRole != null) {
                                                     updateUserRole(
-                                                      user['matricule'],
+                                                      user['email'],
                                                       newRole,
                                                     );
                                                   }
