@@ -94,6 +94,7 @@ class _AdminPageState extends State<AdminPage> {
     super.dispose();
   }
 
+
   /// =========================
   /// UI
   /// =========================
@@ -134,8 +135,7 @@ class _AdminPageState extends State<AdminPage> {
 
               Expanded(
                 child: Text(
-                  "${widget.employee['prenom'] ?? ''} "
-                  "${widget.employee['nom'] ?? ''} (Admin)",
+                  "${widget.employee['prenom'] ?? ''} (${widget.employee['role'] ?? ''})",
                   style: const TextStyle(
                     fontSize: 16,
                     color: Colors.black,
