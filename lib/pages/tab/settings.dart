@@ -64,7 +64,7 @@ class _SettingPageState extends State<SettingPage> {
 
     if (email.isEmpty || prenom.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Email et full name sont obligatoires")),
+        const SnackBar(content: Text("full name obligatoire")),
       );
       return;
     }
