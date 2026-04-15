@@ -17,9 +17,9 @@ class _SettingPageState extends State<SettingPage> {
 
   // Controllers
   final TextEditingController emailController = TextEditingController();
-  final TextEditingController matriculeController = TextEditingController();
+  //final TextEditingController matriculeController = TextEditingController();
   final TextEditingController prenomController = TextEditingController();
-  final TextEditingController nomController = TextEditingController();
+  //final TextEditingController nomController = TextEditingController();
 
   String role = 'admin';
   bool isSubmitting = false;
@@ -59,10 +59,9 @@ class _SettingPageState extends State<SettingPage> {
 
   /// ➕ Ajouter admin
   Future<void> addAdmin() async {
-    if (matriculeController.text.trim().isEmpty ||
-        prenomController.text.trim().isEmpty) {
+    if (prenomController.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Matricule et prénom obligatoires !")),
+        const SnackBar(content: Text(" Full name obligatoire !")),
       );
       return;
     }
@@ -74,11 +73,7 @@ class _SettingPageState extends State<SettingPage> {
         'email': emailController.text.trim().isEmpty
             ? null
             : emailController.text.trim(), // optionnel
-        'matricule': matriculeController.text.trim(), // obligatoire
         'prenom': prenomController.text.trim(),
-        'nom': nomController.text.trim().isEmpty
-            ? null
-            : nomController.text.trim(),
         'role': role,
       });
 
@@ -90,9 +85,7 @@ class _SettingPageState extends State<SettingPage> {
 
       // reset
       emailController.clear();
-      matriculeController.clear();
       prenomController.clear();
-      nomController.clear();
       setState(() => role = 'admin');
     } catch (e) {
       if (!mounted) return;
@@ -262,22 +255,11 @@ class _SettingPageState extends State<SettingPage> {
                                 labelText: 'Email'),
                           ),
 
-                          TextField(
-                            controller: matriculeController,
-                            decoration: const InputDecoration(
-                                labelText: 'Matricule *'),
-                          ),
-
+                          
                           TextField(
                             controller: prenomController,
                             decoration: const InputDecoration(
-                                labelText: 'Prénom *'),
-                          ),
-
-                          TextField(
-                            controller: nomController,
-                            decoration:
-                                const InputDecoration(labelText: 'Nom'),
+                                labelText: 'Full name '),
                           ),
 
                           const SizedBox(height: 5),
@@ -289,7 +271,7 @@ class _SettingPageState extends State<SettingPage> {
                               DropdownMenuItem(
                                   value: 'admin', child: Text('Admin')),
                               DropdownMenuItem(
-                                  value: 'sub_admin',
+                                  value: 'subadmin',
                                   child: Text('Sub Admin')),
                               DropdownMenuItem(
                                   value: 'employe',
