@@ -63,7 +63,7 @@ class _UsersManagementDialogState extends State<UsersManagementDialog> {
 
       var query = supabase
           .from('employees')
-          .select('matricule, prenom, email, role, status');
+          .select('prenom, email, role, status');
 
       query = query.eq('role', selectedRole);
 
@@ -71,10 +71,8 @@ class _UsersManagementDialogState extends State<UsersManagementDialog> {
         final search = searchQuery.trim();
 
         query = query.or(
-          'matricule.ilike.%$search%,'
           'email.ilike.%$search%,'
           'prenom.ilike.%$search%,'
-          'nom.ilike.%$search%',
         );
       }
 
@@ -218,82 +216,94 @@ class _UsersManagementDialogState extends State<UsersManagementDialog> {
                             final isActive = user['status'] == true;
 
                             return Card(
-                              color: isActive
-                                  ? null
-                                  : Colors.red.shade100,
-                              margin: const EdgeInsets.symmetric(
-                                  vertical: 8, horizontal: 10),
-                              child: ListTile(
-                                title: Text(
-                                  user['prenom'] ?? '',
-                                  style: const TextStyle(
-                                      fontWeight: FontWeight.bold),
-                                ),
+                                    color: isActive ? null : Colors.red.shade100,
+                                    margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 10),
+                                    child: Padding(
+                                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                                      child: Row(
+                                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                        children: [
 
-                                subtitle: Column(
-                                  crossAxisAlignment:
-                                      CrossAxisAlignment.start,
-                                  children: [
-                                    Text(user['email'] ?? ''),
-                                    const SizedBox(height: 5),
+                                          /// =========================
+                                          /// LEFT SIDE (prenom + email)
+                                          /// =========================
+                                          Expanded(
+                                            child: Column(
+                                              crossAxisAlignment: CrossAxisAlignment.start,
+                                              children: [
+                                                Text(
+                                                  user['prenom'] ?? '',
+                                                  style: const TextStyle(
+                                                    fontWeight: FontWeight.bold,
+                                                  ),
+                                                ),
+                                                Text(
+                                                  "(${user['email'] ?? ''})",
+                                                  style: const TextStyle(
+                                                    color: Colors.grey,
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ),
 
-                                    /// 🔥 ROLE DROPDOWN PER USER
-                                    Row(
-                                      children: [
-                                        const Text("Role: "),
-                                        const SizedBox(width: 10),
+                                          /// =========================
+                                          /// RIGHT SIDE (role + status)
+                                          /// =========================
+                                          Row(
+                                            children: [
 
-                                        DropdownButton<String>(
-                                          value: user['role'],
-                                          items: roles
-                                              .map((r) => DropdownMenuItem(
-                                                    value: r,
-                                                    child: Text(r),
-                                                  ))
-                                              .toList(),
-                                          onChanged: (newRole) {
-                                            if (newRole != null) {
-                                              updateUserRole(
-                                                user['matricule'],
-                                                newRole,
-                                              );
-                                            }
-                                          },
-                                        ),
-                                      ],
-                                    ),
-                                  ],
-                                ),
+                                              /// ROLE DROPDOWN
+                                              DropdownButton<String>(
+                                                value: user['role'],
+                                                items: roles
+                                                    .map((r) => DropdownMenuItem(
+                                                          value: r,
+                                                          child: Text(r),
+                                                        ))
+                                                    .toList(),
+                                                onChanged: (newRole) {
+                                                  if (newRole != null) {
+                                                    updateUserRole(
+                                                      user['matricule'],
+                                                      newRole,
+                                                    );
+                                                  }
+                                                },
+                                              ),
 
-                                trailing: Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Text(
-                                      isActive ? "Actif" : "Bloqué",
-                                      style: TextStyle(
-                                        color: isActive
-                                            ? Colors.green
-                                            : Colors.red,
+                                              const SizedBox(width: 10),
+
+                                              /// STATUS TEXT
+                                              Text(
+                                                isActive ? "Actif" : "Bloqué",
+                                                style: TextStyle(
+                                                  color: isActive ? Colors.green : Colors.red,
+                                                  fontWeight: FontWeight.bold,
+                                                ),
+                                              ),
+
+                                              const SizedBox(width: 8),
+
+                                              /// TOGGLE BUTTON
+                                              IconButton(
+                                                icon: Icon(
+                                                  Icons.block,
+                                                  color: isActive ? Colors.red : Colors.green,
+                                                ),
+                                                onPressed: () {
+                                                  toggleUserStatus(
+                                                    user['matricule'],
+                                                    isActive,
+                                                  );
+                                                },
+                                              ),
+                                            ],
+                                          ),
+                                        ],
                                       ),
                                     ),
-                                    IconButton(
-                                      icon: Icon(
-                                        Icons.block,
-                                        color: isActive
-                                            ? Colors.red
-                                            : Colors.green,
-                                      ),
-                                      onPressed: () {
-                                        toggleUserStatus(
-                                          user['matricule'],
-                                          isActive,
-                                        );
-                                      },
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            );
+                                  );
                           },
                         ),
             ),
