@@ -59,7 +59,7 @@ class _SettingPageState extends State<SettingPage> {
 
   /// ➕ Ajouter admin
   Future<void> addAdmin() async {
-    if (prenomController.text.trim().isEmpty) {
+    if (prenomController.text.trim().isEmpty || emailController.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text(" Full name obligatoire !")),
       );
@@ -70,9 +70,7 @@ class _SettingPageState extends State<SettingPage> {
 
     try {
       await supabase.from('employees').insert({
-        'email': emailController.text.trim().isEmpty
-            ? null
-            : emailController.text.trim(), // optionnel
+        'email': emailController.text.trim(), 
         'prenom': prenomController.text.trim(),
         'role': role,
       });
