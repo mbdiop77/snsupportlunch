@@ -232,23 +232,29 @@ class _SettingPageState extends State<SettingPage> {
                   /// ===========================
                   /// LISTE UTILISATEURS
                   /// ===========================
-                  
-                  Card(
-                    child: Padding(
-                      padding: const EdgeInsets.all(10),
-                      child: Column(
-                        children: admins.map((admin) {
-                          final fullName = (admin['prenom'] ?? '').toString();
-                          final roleText = (admin['role'] ?? '').toString();
+                    Center(
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(
+                        maxWidth: 600, // 👈 largeur max
+                      ),
+                      child: Card(
+                        child: Padding(
+                          padding: const EdgeInsets.all(10),
+                          child: Column(
+                            children: admins.map((admin) {
+                              final fullName = (admin['prenom'] ?? '').toString();
+                              final roleText = (admin['role'] ?? '').toString();
 
-                          final displayName =
-                              "$fullName ${roleText.isNotEmpty ? '($roleText)' : ''}";
+                              final displayName =
+                                  "$fullName ${roleText.isNotEmpty ? '($roleText)' : ''}";
 
-                          return ListTile(
-                            title: Text(displayName),
-                            subtitle: Text(admin['email'] ?? ''),
-                          );
-                        }).toList(),
+                              return ListTile(
+                                title: Text(displayName),
+                                subtitle: Text(admin['email'] ?? ''),
+                              );
+                            }).toList(),
+                          ),
+                        ),
                       ),
                     ),
                   )
