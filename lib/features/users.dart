@@ -72,7 +72,7 @@ class _UsersManagementDialogState extends State<UsersManagementDialog> {
 
         query = query.or(
           'email.ilike.%$search%,'
-          'prenom.ilike.%$search%,'
+          'prenom.ilike.%$search%',
         );
       }
 
@@ -107,7 +107,7 @@ class _UsersManagementDialogState extends State<UsersManagementDialog> {
   }
 
   /// ===========================
-  /// TOGGLE STATUS
+  /// TOGGLE STATUS (FIXED)
   /// ===========================
   Future<void> toggleUserStatus(String email, bool currentStatus) async {
     await supabase
@@ -119,7 +119,7 @@ class _UsersManagementDialogState extends State<UsersManagementDialog> {
   }
 
   /// ===========================
-  /// CHANGE ROLE (NEW 🔥)
+  /// UPDATE ROLE
   /// ===========================
   Future<void> updateUserRole(String email, String newRole) async {
     await supabase
@@ -161,13 +161,13 @@ class _UsersManagementDialogState extends State<UsersManagementDialog> {
 
             const SizedBox(height: 10),
 
-            /// SEARCH + FILTER ROLE
+            /// SEARCH + ROLE FILTER
             Row(
               children: [
                 Expanded(
                   child: TextField(
                     decoration: const InputDecoration(
-                      hintText: "Rechercher (email, full name)",
+                      hintText: "Rechercher (email, prénom)",
                       prefixIcon: Icon(Icons.search),
                       border: OutlineInputBorder(),
                     ),
@@ -215,95 +215,206 @@ class _UsersManagementDialogState extends State<UsersManagementDialog> {
                             final user = users[index];
                             final isActive = user['status'] == true;
 
-                            return Card(
-                                    color: isActive ? null : Colors.red.shade100,
-                                    margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 10),
-                                    child: Padding(
-                                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                                      child: Row(
-                                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                        children: [
+                            return LayoutBuilder(
+                              builder: (context, constraints) {
+                                final isMobile =
+                                    constraints.maxWidth < 600;
 
-                                          /// =========================
-                                          /// LEFT SIDE (prenom + email)
-                                          /// =========================
-                                          Expanded(
-                                            child: Column(
-                                              crossAxisAlignment: CrossAxisAlignment.start,
+                                return SizedBox(
+                                  width: double.infinity,
+                                  child: Card(
+                                    color: isActive
+                                        ? null
+                                        : Colors.red.shade100,
+                                    margin: const EdgeInsets.symmetric(
+                                        vertical: 8, horizontal: 10),
+                                    child: Padding(
+                                      padding:
+                                          const EdgeInsets.symmetric(
+                                              horizontal: 12,
+                                              vertical: 10),
+                                      child: isMobile
+                                          ? Column(
+                                              crossAxisAlignment:
+                                                  CrossAxisAlignment
+                                                      .start,
                                               children: [
                                                 Text(
                                                   user['prenom'] ?? '',
                                                   style: const TextStyle(
-                                                    fontWeight: FontWeight.bold,
-                                                  ),
+                                                      fontWeight:
+                                                          FontWeight
+                                                              .bold),
                                                 ),
                                                 Text(
-                                                  "${user['email'] ?? ''}",
+                                                  user['email'] ?? '',
                                                   style: const TextStyle(
-                                                    color: Colors.grey,
+                                                      color:
+                                                          Colors.grey),
+                                                ),
+                                                const SizedBox(
+                                                    height: 10),
+                                                Row(
+                                                  mainAxisAlignment:
+                                                      MainAxisAlignment
+                                                          .spaceBetween,
+                                                  children: [
+                                                    DropdownButton<
+                                                        String>(
+                                                      value:
+                                                          user['role'],
+                                                      items: roles
+                                                          .map((r) =>
+                                                              DropdownMenuItem(
+                                                                value: r,
+                                                                child: Text(
+                                                                    r),
+                                                              ))
+                                                          .toList(),
+                                                      onChanged:
+                                                          (newRole) {
+                                                        if (newRole !=
+                                                            null) {
+                                                          updateUserRole(
+                                                            user[
+                                                                'email'],
+                                                            newRole,
+                                                          );
+                                                        }
+                                                      },
+                                                    ),
+                                                    Text(
+                                                      isActive
+                                                          ? "Actif"
+                                                          : "Bloqué",
+                                                      style: TextStyle(
+                                                        color: isActive
+                                                            ? Colors
+                                                                .green
+                                                            : Colors.red,
+                                                        fontWeight:
+                                                            FontWeight
+                                                                .bold,
+                                                      ),
+                                                    ),
+                                                    IconButton(
+                                                      icon: Icon(
+                                                        Icons.block,
+                                                        color: isActive
+                                                            ? Colors.red
+                                                            : Colors
+                                                                .green,
+                                                      ),
+                                                      onPressed: () {
+                                                        toggleUserStatus(
+                                                          user['email'],
+                                                          isActive,
+                                                        );
+                                                      },
+                                                    ),
+                                                  ],
+                                                ),
+                                              ],
+                                            )
+
+                                          /// DESKTOP
+                                          : Row(
+                                              mainAxisAlignment:
+                                                  MainAxisAlignment
+                                                      .spaceBetween,
+                                              children: [
+                                                Expanded(
+                                                  child: Column(
+                                                    crossAxisAlignment:
+                                                        CrossAxisAlignment
+                                                            .start,
+                                                    children: [
+                                                      Text(
+                                                        user['prenom'] ??
+                                                            '',
+                                                        style: const TextStyle(
+                                                            fontWeight:
+                                                                FontWeight
+                                                                    .bold),
+                                                      ),
+                                                      Text(
+                                                        user['email'] ??
+                                                            '',
+                                                        style: const TextStyle(
+                                                            color: Colors
+                                                                .grey),
+                                                      ),
+                                                    ],
                                                   ),
+                                                ),
+                                                Row(
+                                                  children: [
+                                                    DropdownButton<
+                                                        String>(
+                                                      value:
+                                                          user['role'],
+                                                      items: roles
+                                                          .map((r) =>
+                                                              DropdownMenuItem(
+                                                                value: r,
+                                                                child: Text(
+                                                                    r),
+                                                              ))
+                                                          .toList(),
+                                                      onChanged:
+                                                          (newRole) {
+                                                        if (newRole !=
+                                                            null) {
+                                                          updateUserRole(
+                                                            user[
+                                                                'email'],
+                                                            newRole,
+                                                          );
+                                                        }
+                                                      },
+                                                    ),
+                                                    const SizedBox(
+                                                        width: 10),
+                                                    Text(
+                                                      isActive
+                                                          ? "Actif"
+                                                          : "Bloqué",
+                                                      style: TextStyle(
+                                                        color: isActive
+                                                            ? Colors
+                                                                .green
+                                                            : Colors.red,
+                                                        fontWeight:
+                                                            FontWeight
+                                                                .bold,
+                                                      ),
+                                                    ),
+                                                    const SizedBox(
+                                                        width: 8),
+                                                    IconButton(
+                                                      icon: Icon(
+                                                        Icons.block,
+                                                        color: isActive
+                                                            ? Colors.red
+                                                            : Colors
+                                                                .green,
+                                                      ),
+                                                      onPressed: () {
+                                                        toggleUserStatus(
+                                                          user['email'],
+                                                          isActive,
+                                                        );
+                                                      },
+                                                    ),
+                                                  ],
                                                 ),
                                               ],
                                             ),
-                                          ),
-
-                                          /// =========================
-                                          /// RIGHT SIDE (role + status)
-                                          /// =========================
-                                          Row(
-                                            children: [
-
-                                              /// ROLE DROPDOWN
-                                              DropdownButton<String>(
-                                                value: user['role'],
-                                                items: roles
-                                                    .map((r) => DropdownMenuItem(
-                                                          value: r,
-                                                          child: Text(r),
-                                                        ))
-                                                    .toList(),
-                                                onChanged: (newRole) {
-                                                  if (newRole != null) {
-                                                    updateUserRole(
-                                                      user['email'],
-                                                      newRole,
-                                                    );
-                                                  }
-                                                },
-                                              ),
-
-                                              const SizedBox(width: 10),
-
-                                              /// STATUS TEXT
-                                              Text(
-                                                isActive ? "Actif" : "Bloqué",
-                                                style: TextStyle(
-                                                  color: isActive ? Colors.green : Colors.red,
-                                                  fontWeight: FontWeight.bold,
-                                                ),
-                                              ),
-
-                                              const SizedBox(width: 8),
-
-                                              /// TOGGLE BUTTON
-                                              IconButton(
-                                                icon: Icon(
-                                                  Icons.block,
-                                                  color: isActive ? Colors.red : Colors.green,
-                                                ),
-                                                onPressed: () {
-                                                  toggleUserStatus(
-                                                    user['matricule'],
-                                                    isActive,
-                                                  );
-                                                },
-                                              ),
-                                            ],
-                                          ),
-                                        ],
-                                      ),
                                     ),
-                                  );
+                                  ),
+                                );
+                              },
+                            );
                           },
                         ),
             ),
