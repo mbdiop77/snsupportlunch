@@ -90,6 +90,7 @@ class DeviceRealtime {
 
 
 
+
 class AppInitializer extends StatefulWidget {
   final Widget child;
   const AppInitializer({super.key,required this.child});

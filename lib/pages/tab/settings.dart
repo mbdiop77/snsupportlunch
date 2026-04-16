@@ -211,23 +211,19 @@ class _SettingPageState extends State<SettingPage> {
                   const SizedBox(height: 20),
 
                   /// LISTE ADMIN
-                  Center(
+                 Center(
                     child: ConstrainedBox(
                       constraints: const BoxConstraints(maxWidth: 600),
                       child: Card(
                         child: Padding(
                           padding: const EdgeInsets.all(10),
                           child: Column(
-                            children: List.generate(
-                                filteredAdmins.length, (index) {
+                            children: List.generate(filteredAdmins.length, (index) {
                               final admin = filteredAdmins[index];
 
-                              final fullName =
-                                  (admin['prenom'] ?? '').toString();
-                              final roleText =
-                                  (admin['role'] ?? '').toString();
-                              final mail =
-                                  (admin['email'] ?? '').toString();
+                              final fullName = (admin['prenom'] ?? '').toString();
+                              final roleText = (admin['role'] ?? '').toString();
+                              final mail = (admin['email'] ?? '').toString();
 
                               Color roleColor;
                               switch (roleText) {
@@ -241,85 +237,108 @@ class _SettingPageState extends State<SettingPage> {
                                   roleColor = Colors.grey;
                               }
 
-                              return Column(
-                                children: [
-                                  Padding(
-                                    padding: const EdgeInsets.symmetric(
-                                        vertical: 10),
-                                    child: Row(
-                                      mainAxisAlignment:
-                                          MainAxisAlignment.spaceBetween,
-                                      children: [
+                              return LayoutBuilder(
+                                builder: (context, constraints) {
+                                  final isMobile = constraints.maxWidth < 600;
 
-                                        /// LEFT
-                                        Expanded(
-                                          child: Row(
-                                            children: [
-                                              const Icon(
-                                                Icons.admin_panel_settings,
-                                                size: 20,
-                                                color: Colors.blue,
-                                              ),
-                                              const SizedBox(width: 8),
-
-                                              Expanded(
-                                                child: Row(
-                                                  children: [
-                                                    Expanded(
-                                                      child: Text(
-                                                        fullName,
-                                                        style:
-                                                            const TextStyle(
-                                                          fontWeight:
-                                                              FontWeight.bold,
-                                                        ),
-                                                      ),
-                                                    ),
-
-                                                    /// BADGE
-                                                    Container(
-                                                      padding:
-                                                          const EdgeInsets
-                                                              .symmetric(
-                                                              horizontal: 8,
-                                                              vertical: 2),
-                                                      decoration: BoxDecoration(
-                                                        color: roleColor,
-                                                        borderRadius:
-                                                            BorderRadius
-                                                                .circular(10),
-                                                      ),
-                                                      child: Text(
-                                                        roleText,
-                                                        style:
-                                                            const TextStyle(
-                                                          color: Colors.white,
-                                                          fontSize: 11,
-                                                        ),
-                                                      ),
-                                                    ),
-                                                  ],
-                                                ),
-                                              ),
-                                            ],
-                                          ),
+                                  Widget roleEmail = Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      /// ROLE
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(
+                                            horizontal: 8, vertical: 2),
+                                        decoration: BoxDecoration(
+                                          color: roleColor,
+                                          borderRadius: BorderRadius.circular(10),
                                         ),
-
-                                        /// RIGHT
-                                        Text(
-                                          mail,
+                                        child: Text(
+                                          roleText,
                                           style: const TextStyle(
-                                            color: Colors.grey,
-                                            fontSize: 13,
+                                            color: Colors.white,
+                                            fontSize: 11,
                                           ),
                                         ),
-                                      ],
-                                    ),
-                                  ),
+                                      ),
 
-                                  if (index != filteredAdmins.length - 1)
-                                    const Divider(height: 1),
-                                ],
+                                      const SizedBox(width: 8),
+
+                                      /// EMAIL
+                                      Text(
+                                        mail,
+                                        style: const TextStyle(
+                                          color: Colors.grey,
+                                          fontSize: 13,
+                                        ),
+                                      ),
+                                    ],
+                                  );
+
+                                  return Column(
+                                    children: [
+                                      Padding(
+                                        padding: const EdgeInsets.symmetric(vertical: 10),
+                                        child: isMobile
+                                            ? Column(
+                                                crossAxisAlignment: CrossAxisAlignment.start,
+                                                children: [
+                                                  /// TOP (ICON + NAME)
+                                                  Row(
+                                                    children: [
+                                                      const Icon(
+                                                        Icons.admin_panel_settings,
+                                                        size: 20,
+                                                        color: Colors.blue,
+                                                      ),
+                                                      const SizedBox(width: 8),
+
+                                                      Expanded(
+                                                        child: Text(
+                                                          fullName,
+                                                          style: const TextStyle(
+                                                            fontWeight: FontWeight.bold,
+                                                          ),
+                                                        ),
+                                                      ),
+                                                    ],
+                                                  ),
+
+                                                  const SizedBox(height: 6),
+
+                                                  /// BOTTOM (ROLE + EMAIL)
+                                                  roleEmail,
+                                                ],
+                                              )
+                                            : Row(
+                                                children: [
+                                                  /// LEFT
+                                                  const Icon(
+                                                    Icons.admin_panel_settings,
+                                                    size: 20,
+                                                    color: Colors.blue,
+                                                  ),
+                                                  const SizedBox(width: 8),
+
+                                                  Expanded(
+                                                    child: Text(
+                                                      fullName,
+                                                      style: const TextStyle(
+                                                        fontWeight: FontWeight.bold,
+                                                      ),
+                                                    ),
+                                                  ),
+
+                                                  /// RIGHT (ROLE + EMAIL)
+                                                  roleEmail,
+                                                ],
+                                              ),
+                                      ),
+
+                                      if (index != filteredAdmins.length - 1)
+                                        const Divider(height: 1),
+                                    ],
+                                  );
+                                },
                               );
                             }),
                           ),

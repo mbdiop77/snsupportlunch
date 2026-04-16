@@ -6,7 +6,6 @@ import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../services/auth_service.dart';
-//import '../services/devices.dart';
 import '../providers/session_provider.dart';
 
 class LoginPage extends StatefulWidget {
@@ -100,7 +99,7 @@ class _LoginPageState extends State<LoginPage> {
       if (mounted) setState(() => isLoading = true);
 
       await authService.signInWithGoogle(
-        redirectTo: 'https://e-support-lunch.com', // 🔥 URL locale
+        redirectTo: 'https://e-support-lunch.com', 
       );
 
       // ⚠️ Le listener gère tout

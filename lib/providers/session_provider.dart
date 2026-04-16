@@ -16,15 +16,15 @@ class SessionProvider extends ChangeNotifier {
   /// 🔹 SAVE SESSION
   /// ===========================
   Future<void> saveSession(Map<String, dynamic> employee) async {
-    final prefs = await SharedPreferences.getInstance();
+    //final prefs = await SharedPreferences.getInstance();
 
     _employee = employee;
 
-    await prefs.setString('employee', jsonEncode(employee));
-    await prefs.setString(
-      'login_time',
-      DateTime.now().toIso8601String(),
-    );
+    //await prefs.setString('employee', jsonEncode(employee));
+    //await prefs.setString(
+      //'login_time',
+     // DateTime.now().toIso8601String(),
+    //);
 
     isLoading = false;
     notifyListeners();
