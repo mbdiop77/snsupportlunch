@@ -282,12 +282,12 @@ class _HistoryPageState extends State<HistoryPage> {
                   child: const Row(
                     children: [
 
-                      Expanded(
-                          flex: 2,
-                          child: Text("Matricule",
-                              style: TextStyle(
-                                  fontWeight:
-                                      FontWeight.bold))),
+                    //  Expanded(
+                    //      flex: 2,
+                   //       child: Text("Matricule",
+                      //        style: TextStyle(
+                      //            fontWeight:
+                          //            FontWeight.bold))),
 
                       Expanded(
                           flex: 3,
@@ -351,11 +351,11 @@ class _HistoryPageState extends State<HistoryPage> {
                             child: Row(
                               children: [
 
-                                Expanded(
-                                    flex: 2,
-                                    child: Text(
-                                        scan['matricule']
-                                            ?? '')),
+                             //   Expanded(
+                              //      flex: 2,
+                              //      child: Text(
+                                //        scan['matricule']
+                                 //           ?? '')),
 
                                 Expanded(
                                     flex: 3,
