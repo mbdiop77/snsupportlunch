@@ -126,73 +126,85 @@ class _LoginPageState extends State<LoginPage> {
     final width = MediaQuery.of(context).size.width;
 
     return Scaffold(
-      body: Center(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24),
-          child: ConstrainedBox(
-            constraints: BoxConstraints(
-              maxWidth: width < 400 ? width : 360,
-            ),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                /// 🔹 Logo app
-                Image.asset(
-                  "assets/icons/icon_app_lunch.png",
-                  height: 100,
-                ),
-                const SizedBox(height: 30),
-
-                /// 🔹 Texte
-                const Text(
-                  "Bienvenue 👋\nConnectez-vous avec votre compte professionnel",
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-                const SizedBox(height: 30),
-
-                /// 🔹 Bouton Google
-                SizedBox(
-                  width: double.infinity,
-                  height: 50,
-                  child: isLoading
-                      ? const Center(child: CircularProgressIndicator())
-                      : ElevatedButton.icon(
-                          onPressed: _loginWithGoogle,
-                          icon: Image.asset(
-                            "assets/icons/google_logo.png",
-                            height: 22,
-                          ),
-                          label: const Text(
-                            "Se connecter avec Google",
-                            style: TextStyle(fontSize: 14),
-                          ),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.white,
-                            foregroundColor: Colors.black,
-                            elevation: 3,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
+          body: Center(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.all(24),
+                  child: ConstrainedBox(
+                    constraints: BoxConstraints(
+                      maxWidth: width < 400 ? width : 360,
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.all(20),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          /// 🔹 Logo arrondi
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(40),
+                            child: Image.asset(
+                              'assets/icons/icon_app_lunch.png',
+                              height: 100,
+                              width: 100,
+                              fit: BoxFit.cover,
                             ),
                           ),
-                        ),
-                ),
-                const SizedBox(height: 15),
 
-                /// 🔹 Loader texte
-                if (isLoading)
-                  const Text(
-                    "Connexion en cours...",
-                    style: TextStyle(fontSize: 12),
+                          const SizedBox(height: 30),
+
+                          /// 🔹 Texte
+                          const Text(
+                            "Bienvenue à E-support lunch 👋\nConnectez-vous avec votre compte professionnel",
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+
+                          const SizedBox(height: 30),
+
+                          /// 🔹 Bouton Google
+                          SizedBox(
+                            width: double.infinity,
+                            height: 50,
+                            child: isLoading
+                                ? const Center(child: CircularProgressIndicator())
+                                : ElevatedButton.icon(
+                                    onPressed: _loginWithGoogle,
+                                    icon: Image.asset(
+                                      "assets/icons/google_logo.png",
+                                      height: 22,
+                                    ),
+                                    label: const Text(
+                                      "Se connecter avec Google",
+                                      style: TextStyle(fontSize: 14),
+                                    ),
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: Colors.white,
+                                      foregroundColor: Colors.black,
+                                      elevation: 3,
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(12),
+                                      ),
+                                    ),
+                                  ),
+                          ),
+
+                          const SizedBox(height: 15),
+
+                          /// 🔹 Loader texte
+                          if (isLoading)
+                            const Text(
+                              "Connexion en cours...",
+                              style: TextStyle(fontSize: 12),
+                            ),
+                        ],
+                      ),
+                    ),
                   ),
-              ],
-            ),
-          ),
-        ),
-      ),
+                ),
+              ),
+      
     );
   }
 }
