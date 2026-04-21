@@ -62,9 +62,9 @@ class _SettingPageState extends State<SettingPage> {
     final email = emailController.text.trim();
     final prenom = prenomController.text.trim();
 
-    if (email.isEmpty || prenom.isEmpty) {
+    if (prenom.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("full name obligatoire")),
+        const SnackBar(content: Text("Full name obligatoire")),
       );
       return;
     }
