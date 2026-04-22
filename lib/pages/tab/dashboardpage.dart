@@ -29,7 +29,8 @@ class _DashboardPageState extends State<DashboardPage> {
   void initState() {
     super.initState();
     loadStats();
-    refreshTimer = Timer.periodic(const Duration(seconds: 10), (_) => loadStats());
+    refreshTimer =
+        Timer.periodic(const Duration(seconds: 10), (_) => loadStats());
   }
 
   @override
@@ -51,9 +52,14 @@ class _DashboardPageState extends State<DashboardPage> {
                 'meals_taken': (s.first['meals_taken'] as num? ?? 0).toInt(),
                 'passages_without_meal':
                     (s.first['passages_without_meal'] as num? ?? 0).toInt(),
-                'total_passages': (s.first['total_passages'] as num? ?? 0).toInt(),
+                'total_passages':
+                    (s.first['total_passages'] as num? ?? 0).toInt(),
               }
-            : {'meals_taken': 0, 'passages_without_meal': 0, 'total_passages': 0};
+            : {
+                'meals_taken': 0,
+                'passages_without_meal': 0,
+                'total_passages': 0
+              };
 
         hourly = h is List ? List<Map<String, dynamic>>.from(h) : [];
       });
@@ -63,8 +69,7 @@ class _DashboardPageState extends State<DashboardPage> {
   }
 
   String formatTime(String? iso) {
-    if (iso == null) return "--";
-    final dt = DateTime.tryParse(iso);
+    final dt = DateTime.tryParse(iso ?? '');
     return dt != null ? DateFormat.Hm().format(dt) : "--";
   }
 
@@ -76,7 +81,10 @@ class _DashboardPageState extends State<DashboardPage> {
 
   Stream<List<Map<String, dynamic>>> streamToday() {
     final today = DateFormat('yyyy-MM-dd').format(DateTime.now());
-    return supabase.from('scans_meal').stream(primaryKey: ['id']).eq('scan_date', today);
+    return supabase
+        .from('scans_meal')
+        .stream(primaryKey: ['id'])
+        .eq('scan_date', today);
   }
 
   @override
@@ -139,73 +147,78 @@ class _DashboardPageState extends State<DashboardPage> {
 
           return SingleChildScrollView(
             padding: const EdgeInsets.all(16),
-            child: Wrap(
-              spacing: 16,
-              runSpacing: 16,
+            child: GridView.count(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              crossAxisCount: isWide ? 4 : 2,
+              crossAxisSpacing: 12,
+              mainAxisSpacing: 12,
               children: [
-                kpiCard("Repas servis", mealsTaken, Icons.restaurant, Colors.green, isWide, width),
-                kpiCard("Sans repas", passagesWithoutMeal, Icons.block, Colors.red, isWide, width),
-                kpiCard("Total passages", totalPassages, Icons.people, Colors.blue, isWide, width),
-                kpiCard("Repas restants", remaining, Icons.inventory, Colors.orange, isWide, width),
+                kpiCard("Repas servis", mealsTaken, Icons.restaurant,
+                    Colors.green, isWide, width),
+                kpiCard("Sans repas", passagesWithoutMeal, Icons.block,
+                    Colors.red, isWide, width),
+                kpiCard("Total passages", totalPassages, Icons.people,
+                    Colors.blue, isWide, width),
+                kpiCard("Repas restants", remaining, Icons.inventory,
+                    Colors.orange, isWide, width),
 
-                kpiCard("Premier scan", firstScan, Icons.access_time, Colors.purple, isWide, width, isText: true),
-                kpiCard("Dernier scan", lastScan, Icons.access_time, Colors.purple, isWide, width, isText: true),
+                kpiCard("Premier scan", firstScan, Icons.access_time,
+                    Colors.purple, isWide, width,
+                    isText: true),
+                kpiCard("Dernier scan", lastScan, Icons.access_time,
+                    Colors.purple, isWide, width,
+                    isText: true),
 
-                kpiCard("Taux conso", "${consumptionRate.toStringAsFixed(1)}%", Icons.percent, Colors.teal, isWide, width, isText: true),
-                kpiCard("Débit /h", flowRate.toStringAsFixed(1), Icons.speed, Colors.indigo, isWide, width, isText: true),
-                kpiCard("Heure de pointe", "${peakHour}h", Icons.timeline, Colors.deepPurple, isWide, width, isText: true),
-
-               // 🔥 KPI intervalle + temps réel
                 kpiCard(
-                  "Dernier scan",
-                  formatDuration(secondsSinceLastScan),
-                  Icons.timer,
-                  isIntervalAlert ? Colors.red : Colors.green,
-                  isWide,
-                  width,
-                  isText: true,
-                ),
+                    "Taux conso",
+                    "${consumptionRate.toStringAsFixed(1)}%",
+                    Icons.percent,
+                    Colors.teal,
+                    isWide,
+                    width,
+                    isText: true),
 
+                kpiCard("Débit /h", flowRate.toStringAsFixed(1), Icons.speed,
+                    Colors.indigo, isWide, width,
+                    isText: true),
 
-                // 🚨 ALERTE VISUELLE CORRIGÉE
+                kpiCard("Heure de pointe", "${peakHour}h", Icons.timeline,
+                    Colors.deepPurple, isWide, width,
+                    isText: true),
+
+                kpiCard(
+                    "Dernier scan",
+                    formatDuration(secondsSinceLastScan),
+                    Icons.timer,
+                    isIntervalAlert ? Colors.red : Colors.green,
+                    isWide,
+                    width,
+                    isText: true),
+
                 if (isIntervalAlert)
-                  SizedBox(
-                   // width: isWide ? width / 2 : width,
-                    child: Card(
-                      color: Colors.red.withValues(alpha: 0.1),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        side: const BorderSide(color: Colors.red),
-                      ),
-                      child: Padding(
-                        padding: const EdgeInsets.all(16),
-                        child: Row(
-                          children: [
-                            const Icon(Icons.warning_amber_rounded, color: Colors.red),
-                            const SizedBox(width: 10),
-                            Expanded(
-                              child: Text(
-                                "⚠️ Aucun scan depuis ${formatDuration(secondsSinceLastScan)}",
-                                style: const TextStyle(fontWeight: FontWeight.bold),
-                              ),
+                  Card(
+                    color: Colors.red.withValues(alpha: 0.1),
+                    child: Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.warning, color: Colors.red),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Text(
+                              "⚠️ Aucun scan depuis ${formatDuration(secondsSinceLastScan)}",
+                              style:
+                                  const TextStyle(fontWeight: FontWeight.bold),
                             ),
-                          ],
-                        ),
+                          ),
+                        ],
                       ),
                     ),
                   ),
-                // ✅ JAUGE RESTAURÉE
-                SizedBox(
-                  width: isWide ? width / 4 - 20 : width,
-                  child: mealGauge(mealsTaken),
-                ),
 
-                // ✅ BAR CHART RESTAURÉ
-                SizedBox(
-                  width: isWide ? width / 4 - 20 : width,
-                  height: 300,
-                  child: scansChart(),
-                ),
+                mealGauge(mealsTaken),
+                scansChart(),
               ],
             ),
           );
@@ -214,29 +227,28 @@ class _DashboardPageState extends State<DashboardPage> {
     );
   }
 
-  Widget kpiCard(String title, dynamic value, IconData icon, Color color, bool isWide, double width,
+  Widget kpiCard(String title, dynamic value, IconData icon, Color color,
+      bool isWide, double width,
       {bool isText = false}) {
-    final displayWidth = isWide ? width / 4 - 20 : width;
-
-    return SizedBox(
-      width: displayWidth,
-      child: Card(
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Row(
-            children: [
-              Icon(icon, color: color),
-              const SizedBox(width: 10),
-              Column(
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Row(
+          children: [
+            Icon(icon, color: color),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(value.toString(),
-                      style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+                      style: const TextStyle(
+                          fontSize: 18, fontWeight: FontWeight.bold)),
                   Text(title),
                 ],
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
@@ -246,19 +258,25 @@ class _DashboardPageState extends State<DashboardPage> {
     final remaining = maxMeals - taken;
 
     return Card(
-      child: PieChart(
-        PieChartData(
-          sections: [
-            PieChartSectionData(value: taken.toDouble(), color: Colors.green),
-            PieChartSectionData(value: remaining.toDouble(), color: Colors.orange),
-          ],
+      child: SizedBox(
+        height: 250,
+        child: PieChart(
+          PieChartData(
+            sections: [
+              PieChartSectionData(value: taken.toDouble(), color: Colors.green),
+              PieChartSectionData(
+                  value: remaining.toDouble(), color: Colors.orange),
+            ],
+          ),
         ),
       ),
     );
   }
 
   Widget scansChart() {
-    if (hourly.isEmpty) return const SizedBox();
+    if (hourly.isEmpty) {
+      return const SizedBox(height: 200);
+    }
 
     final barGroups = hourly.asMap().entries.map((entry) {
       final index = entry.key;
@@ -273,65 +291,39 @@ class _DashboardPageState extends State<DashboardPage> {
     }).toList();
 
     return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
+      child: SizedBox(
+        height: 300,
         child: BarChart(
           BarChartData(
-            gridData: FlGridData(
-              show: true,
-              horizontalInterval: 5, // 🔥 lignes tous les 5
-            ),
-
+            gridData:
+                FlGridData(show: true, horizontalInterval: 5),
             borderData: FlBorderData(
-              show: true,
-              border: const Border(
-                left: BorderSide(),
-                bottom: BorderSide(),
-              ),
-            ),
-
+                show: true,
+                border: const Border(
+                    left: BorderSide(), bottom: BorderSide())),
             titlesData: FlTitlesData(
-              // ❌ désactiver droite
-              rightTitles: AxisTitles(
-                sideTitles: SideTitles(showTitles: false),
-              ),
-
-              // ❌ désactiver haut
-              topTitles: AxisTitles(
-                sideTitles: SideTitles(showTitles: false),
-              ),
-
-              // ✅ Axe Y (gauche) propre
+              rightTitles:
+                  AxisTitles(sideTitles: SideTitles(showTitles: false)),
+              topTitles:
+                  AxisTitles(sideTitles: SideTitles(showTitles: false)),
               leftTitles: AxisTitles(
                 sideTitles: SideTitles(
                   showTitles: true,
-                  interval: 5, // 🔥 pas de 5
+                  interval: 5,
                   reservedSize: 30,
-                  getTitlesWidget: (value, meta) {
-                    return Text(
-                      value.toInt().toString(),
-                      style: const TextStyle(fontSize: 10),
-                    );
-                  },
                 ),
               ),
-
-              // ✅ Axe X (heures)
               bottomTitles: AxisTitles(
                 sideTitles: SideTitles(
                   showTitles: true,
                   getTitlesWidget: (value, meta) {
-                    final index = value.toInt();
-                    if (index < 0 || index >= hourly.length) {
-                      return const SizedBox();
-                    }
-                    final hour = hourly[index]['hour'];
-                    return Text("${hour}h", style: const TextStyle(fontSize: 10));
+                    final i = value.toInt();
+                    if (i >= hourly.length) return const SizedBox();
+                    return Text("${hourly[i]['hour']}h");
                   },
                 ),
               ),
             ),
-
             barGroups: barGroups,
           ),
         ),
