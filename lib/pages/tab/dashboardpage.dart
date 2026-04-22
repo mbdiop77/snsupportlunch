@@ -154,7 +154,7 @@ class _DashboardPageState extends State<DashboardPage> {
               runSpacing: 16,
               children: [
 
-                // 🔥 KPI RESTAURÉS EN VERSION COMPACTE
+                // ================= KPI =================
                 kpiCard("Repas servis", mealsTaken, Icons.restaurant,
                     Colors.green, isWide, width),
                 kpiCard("Sans repas", passagesWithoutMeal, Icons.block,
@@ -197,7 +197,7 @@ class _DashboardPageState extends State<DashboardPage> {
                     width,
                     isText: true),
 
-                // 🚨 ALERTE (inchangée)
+                // ================= ALERTE =================
                 if (isIntervalAlert)
                   SizedBox(
                     width: isWide ? width / 2 : width,
@@ -211,8 +211,7 @@ class _DashboardPageState extends State<DashboardPage> {
                         padding: const EdgeInsets.all(16),
                         child: Row(
                           children: [
-                            const Icon(Icons.warning_amber_rounded,
-                                color: Colors.red),
+                            const Icon(Icons.warning, color: Colors.red),
                             const SizedBox(width: 10),
                             Expanded(
                               child: Text(
@@ -227,17 +226,28 @@ class _DashboardPageState extends State<DashboardPage> {
                     ),
                   ),
 
-                // ✅ JAUGE (inchangée)
+                // ================= JAUGE =================
                 SizedBox(
-                  width: isWide ? width / 4 - 20 : width,
-                  child: mealGauge(mealsTaken),
+                  width: isWide ? width / 2 - 20 : width,
+                  height: 320,
+                  child: Card(
+                    child: Padding(
+                      padding: const EdgeInsets.all(12),
+                      child: mealGauge(mealsTaken),
+                    ),
+                  ),
                 ),
 
-                // ✅ GRAPHIQUE (inchangé)
+                // ================= GRAPHIQUE =================
                 SizedBox(
-                  width: isWide ? width / 4 - 20 : width,
-                  height: 300,
-                  child: scansChart(),
+                  width: isWide ? width / 2 - 20 : width,
+                  height: 320,
+                  child: Card(
+                    child: Padding(
+                      padding: const EdgeInsets.all(12),
+                      child: scansChart(),
+                    ),
+                  ),
                 ),
               ],
             ),
@@ -247,7 +257,7 @@ class _DashboardPageState extends State<DashboardPage> {
     );
   }
 
-  // 🔥 KPI FIX : hauteur compacte comme avant
+  // ================= KPI =================
   Widget kpiCard(
     String title,
     dynamic value,
@@ -261,7 +271,7 @@ class _DashboardPageState extends State<DashboardPage> {
 
     return SizedBox(
       width: displayWidth,
-      height: 85, // ✅ FIX PRINCIPAL
+      height: 85,
       child: Card(
         elevation: 3,
         shape: RoundedRectangleBorder(
@@ -304,25 +314,41 @@ class _DashboardPageState extends State<DashboardPage> {
     );
   }
 
+  // ================= JAUGE =================
   Widget mealGauge(int taken) {
     final remaining = maxMeals - taken;
 
-    return Card(
-      child: PieChart(
-        PieChartData(
-          sections: [
-            PieChartSectionData(
-                value: taken.toDouble(), color: Colors.green),
-            PieChartSectionData(
-                value: remaining.toDouble(), color: Colors.orange),
-          ],
-        ),
-      ),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        return PieChart(
+          PieChartData(
+            centerSpaceRadius: 45,
+            sectionsSpace: 2,
+            sections: [
+              PieChartSectionData(
+                value: taken.toDouble(),
+                color: Colors.green,
+                radius: constraints.maxWidth * 0.35,
+                title: '',
+              ),
+              PieChartSectionData(
+                value: remaining.toDouble(),
+                color: Colors.orange,
+                radius: constraints.maxWidth * 0.35,
+                title: '',
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 
+  // ================= GRAPHIQUE =================
   Widget scansChart() {
-    if (hourly.isEmpty) return const SizedBox();
+    if (hourly.isEmpty) {
+      return const Center(child: Text("Aucune donnée"));
+    }
 
     final barGroups = hourly.asMap().entries.map((entry) {
       final index = entry.key;
@@ -331,28 +357,22 @@ class _DashboardPageState extends State<DashboardPage> {
       return BarChartGroupData(
         x: index,
         barRods: [
-          BarChartRodData(toY: value, width: 16),
+          BarChartRodData(
+            toY: value,
+            width: 14,
+            borderRadius: BorderRadius.circular(4),
+          ),
         ],
       );
     }).toList();
 
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: BarChart(
-          BarChartData(
-            gridData: FlGridData(show: true, horizontalInterval: 5),
-            borderData: FlBorderData(
-              show: true,
-              border: const Border(
-                left: BorderSide(),
-                bottom: BorderSide(),
-              ),
-            ),
-            titlesData: FlTitlesData(show: true),
-            barGroups: barGroups,
-          ),
-        ),
+    return BarChart(
+      BarChartData(
+        minY: 0,
+        gridData: const FlGridData(show: true),
+        borderData: FlBorderData(show: true),
+        titlesData: const FlTitlesData(show: true),
+        barGroups: barGroups,
       ),
     );
   }
