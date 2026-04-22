@@ -90,7 +90,8 @@ class _DashboardPageState extends State<DashboardPage> {
         builder: (context, snapshot) {
           final scans = snapshot.data ?? [];
 
-          scans.sort((a, b) => (a['scanned_at'] ?? '').compareTo(b['scanned_at'] ?? ''));
+          scans.sort((a, b) =>
+              (a['scanned_at'] ?? '').compareTo(b['scanned_at'] ?? ''));
 
           String firstScan = "--";
           String lastScan = "--";
@@ -105,24 +106,26 @@ class _DashboardPageState extends State<DashboardPage> {
           final totalPassages = stats['total_passages'] ?? 0;
           final remaining = maxMeals - mealsTaken;
 
-          // 🔥 KPI calculs
-          final consumptionRate = maxMeals > 0 ? (mealsTaken / maxMeals * 100) : 0;
+          final consumptionRate =
+              maxMeals > 0 ? (mealsTaken / maxMeals * 100) : 0;
 
           double flowRate = 0;
           if (hourly.isNotEmpty) {
-            final total = hourly.fold<num>(0, (sum, e) => sum + (e['total'] as num));
+            final total =
+                hourly.fold<num>(0, (sum, e) => sum + (e['total'] as num));
             flowRate = total / hourly.length;
           }
 
           int peakHour = 0;
+          int maxValue = 0;
           for (var e in hourly) {
-            if ((e['total'] as num).toInt() >
-                (hourly.first['total'] as num).toInt()) {
+            final val = (e['total'] as num).toInt();
+            if (val > maxValue) {
+              maxValue = val;
               peakHour = (e['hour'] as num).toInt();
             }
           }
 
-          // 🔥 INTERVALLE CORRIGÉ
           int secondsSinceLastScan = 0;
           if (scans.isNotEmpty) {
             final last = DateTime.tryParse(scans.last['scanned_at'] ?? '');
@@ -152,7 +155,7 @@ class _DashboardPageState extends State<DashboardPage> {
                 kpiCard("Débit /h", flowRate.toStringAsFixed(1), Icons.speed, Colors.indigo, isWide, width, isText: true),
                 kpiCard("Heure de pointe", "${peakHour}h", Icons.timeline, Colors.deepPurple, isWide, width, isText: true),
 
-                // 🔥 NOUVEAU KPI TEMPS RÉEL
+               // 🔥 KPI intervalle + temps réel
                 kpiCard(
                   "Dernier scan",
                   formatDuration(secondsSinceLastScan),
@@ -163,27 +166,46 @@ class _DashboardPageState extends State<DashboardPage> {
                   isText: true,
                 ),
 
-                // 🚨 ALERTE
+
+                // 🚨 ALERTE VISUELLE CORRIGÉE
                 if (isIntervalAlert)
                   SizedBox(
                     width: isWide ? width / 2 : width,
                     child: Card(
                       color: Colors.red.withValues(alpha: 0.1),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        side: const BorderSide(color: Colors.red),
+                      ),
                       child: Padding(
                         padding: const EdgeInsets.all(16),
                         child: Row(
                           children: [
-                            const Icon(Icons.warning, color: Colors.red),
+                            const Icon(Icons.warning_amber_rounded, color: Colors.red),
                             const SizedBox(width: 10),
-                            Text("⚠️ Aucun scan depuis ${formatDuration(secondsSinceLastScan)}"),
+                            Expanded(
+                              child: Text(
+                                "⚠️ Aucun scan depuis ${formatDuration(secondsSinceLastScan)}",
+                                style: const TextStyle(fontWeight: FontWeight.bold),
+                              ),
+                            ),
                           ],
                         ),
                       ),
                     ),
                   ),
+                // ✅ JAUGE RESTAURÉE
+                SizedBox(
+                  width: isWide ? width / 4 - 20 : width,
+                  child: mealGauge(mealsTaken),
+                ),
 
-                SizedBox(width: isWide ? width / 4 - 20 : width, child: mealGauge(mealsTaken)),
-                SizedBox(width: isWide ? width / 4 - 20 : width, height: 300, child: scansChart()),
+                // ✅ BAR CHART RESTAURÉ
+                SizedBox(
+                  width: isWide ? width / 4 - 20 : width,
+                  height: 300,
+                  child: scansChart(),
+                ),
               ],
             ),
           );
@@ -195,6 +217,7 @@ class _DashboardPageState extends State<DashboardPage> {
   Widget kpiCard(String title, dynamic value, IconData icon, Color color, bool isWide, double width,
       {bool isText = false}) {
     final displayWidth = isWide ? width / 4 - 20 : width;
+
     return SizedBox(
       width: displayWidth,
       child: Card(
@@ -221,6 +244,7 @@ class _DashboardPageState extends State<DashboardPage> {
 
   Widget mealGauge(int taken) {
     final remaining = maxMeals - taken;
+
     return Card(
       child: PieChart(
         PieChartData(
@@ -253,63 +277,63 @@ class _DashboardPageState extends State<DashboardPage> {
         padding: const EdgeInsets.all(16),
         child: BarChart(
           BarChartData(
-          gridData: FlGridData(
-            show: true,
-            horizontalInterval: 5, // 🔥 lignes tous les 5
-          ),
-
-          borderData: FlBorderData(
-            show: true,
-            border: const Border(
-              left: BorderSide(),
-              bottom: BorderSide(),
-            ),
-          ),
-
-          titlesData: FlTitlesData(
-            // ❌ désactiver droite
-            rightTitles: AxisTitles(
-              sideTitles: SideTitles(showTitles: false),
+            gridData: FlGridData(
+              show: true,
+              horizontalInterval: 5, // 🔥 lignes tous les 5
             ),
 
-            // ❌ désactiver haut
-            topTitles: AxisTitles(
-              sideTitles: SideTitles(showTitles: false),
-            ),
-
-            // ✅ Axe Y (gauche) propre
-            leftTitles: AxisTitles(
-              sideTitles: SideTitles(
-                showTitles: true,
-                interval: 5, // 🔥 pas de 5
-                reservedSize: 30,
-                getTitlesWidget: (value, meta) {
-                  return Text(
-                    value.toInt().toString(),
-                    style: const TextStyle(fontSize: 10),
-                  );
-                },
+            borderData: FlBorderData(
+              show: true,
+              border: const Border(
+                left: BorderSide(),
+                bottom: BorderSide(),
               ),
             ),
 
-            // ✅ Axe X (heures)
-            bottomTitles: AxisTitles(
-              sideTitles: SideTitles(
-                showTitles: true,
-                getTitlesWidget: (value, meta) {
-                  final index = value.toInt();
-                  if (index < 0 || index >= hourly.length) {
-                    return const SizedBox();
-                  }
-                  final hour = hourly[index]['hour'];
-                  return Text("${hour}h", style: const TextStyle(fontSize: 10));
-                },
+            titlesData: FlTitlesData(
+              // ❌ désactiver droite
+              rightTitles: AxisTitles(
+                sideTitles: SideTitles(showTitles: false),
+              ),
+
+              // ❌ désactiver haut
+              topTitles: AxisTitles(
+                sideTitles: SideTitles(showTitles: false),
+              ),
+
+              // ✅ Axe Y (gauche) propre
+              leftTitles: AxisTitles(
+                sideTitles: SideTitles(
+                  showTitles: true,
+                  interval: 5, // 🔥 pas de 5
+                  reservedSize: 30,
+                  getTitlesWidget: (value, meta) {
+                    return Text(
+                      value.toInt().toString(),
+                      style: const TextStyle(fontSize: 10),
+                    );
+                  },
+                ),
+              ),
+
+              // ✅ Axe X (heures)
+              bottomTitles: AxisTitles(
+                sideTitles: SideTitles(
+                  showTitles: true,
+                  getTitlesWidget: (value, meta) {
+                    final index = value.toInt();
+                    if (index < 0 || index >= hourly.length) {
+                      return const SizedBox();
+                    }
+                    final hour = hourly[index]['hour'];
+                    return Text("${hour}h", style: const TextStyle(fontSize: 10));
+                  },
+                ),
               ),
             ),
-          ),
 
-          barGroups: barGroups,
-        ),
+            barGroups: barGroups,
+          ),
         ),
       ),
     );
