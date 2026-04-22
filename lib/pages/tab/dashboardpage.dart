@@ -29,10 +29,7 @@ class _DashboardPageState extends State<DashboardPage> {
   void initState() {
     super.initState();
     loadStats();
-
-    refreshTimer = Timer.periodic(const Duration(seconds: 10), (_) {
-      loadStats();
-    });
+    refreshTimer = Timer.periodic(const Duration(seconds: 10), (_) => loadStats());
   }
 
   @override
@@ -68,8 +65,13 @@ class _DashboardPageState extends State<DashboardPage> {
   String formatTime(String? iso) {
     if (iso == null) return "--";
     final dt = DateTime.tryParse(iso);
-    if (dt == null) return "--";
-    return DateFormat.Hm().format(dt);
+    return dt != null ? DateFormat.Hm().format(dt) : "--";
+  }
+
+  String formatDuration(int seconds) {
+    if (seconds < 60) return "$seconds s";
+    if (seconds < 3600) return "${(seconds / 60).toStringAsFixed(1)} min";
+    return "${(seconds / 3600).toStringAsFixed(1)} h";
   }
 
   Stream<List<Map<String, dynamic>>> streamToday() {
@@ -92,6 +94,7 @@ class _DashboardPageState extends State<DashboardPage> {
 
           String firstScan = "--";
           String lastScan = "--";
+
           if (scans.isNotEmpty) {
             firstScan = formatTime(scans.first['scanned_at']);
             lastScan = formatTime(scans.last['scanned_at']);
@@ -102,7 +105,7 @@ class _DashboardPageState extends State<DashboardPage> {
           final totalPassages = stats['total_passages'] ?? 0;
           final remaining = maxMeals - mealsTaken;
 
-          // 🔥 NOUVEAUX CALCULS
+          // 🔥 KPI calculs
           final consumptionRate = maxMeals > 0 ? (mealsTaken / maxMeals * 100) : 0;
 
           double flowRate = 0;
@@ -112,33 +115,24 @@ class _DashboardPageState extends State<DashboardPage> {
           }
 
           int peakHour = 0;
-          int maxValue = 0;
           for (var e in hourly) {
-            final val = (e['total'] as num).toInt();
-            if (val > maxValue) {
-              maxValue = val;
+            if ((e['total'] as num).toInt() >
+                (hourly.first['total'] as num).toInt()) {
               peakHour = (e['hour'] as num).toInt();
             }
           }
 
-          double avgInterval = 0;
-          if (scans.length > 1) {
-            List<DateTime> times = scans
-                .map((e) => DateTime.tryParse(e['scanned_at'] ?? ''))
-                .whereType<DateTime>()
-                .toList();
-
-            times.sort();
-
-            int totalSeconds = 0;
-            for (int i = 1; i < times.length; i++) {
-              totalSeconds += times[i].difference(times[i - 1]).inSeconds;
+          // 🔥 INTERVALLE CORRIGÉ
+          int secondsSinceLastScan = 0;
+          if (scans.isNotEmpty) {
+            final last = DateTime.tryParse(scans.last['scanned_at'] ?? '');
+            if (last != null) {
+              secondsSinceLastScan =
+                  DateTime.now().difference(last).inSeconds;
             }
-
-            avgInterval = totalSeconds / (times.length - 1);
           }
 
-          final isIntervalAlert = avgInterval > 1800; // 30 min
+          final isIntervalAlert = secondsSinceLastScan > 1800;
 
           return SingleChildScrollView(
             padding: const EdgeInsets.all(16),
@@ -154,34 +148,34 @@ class _DashboardPageState extends State<DashboardPage> {
                 kpiCard("Premier scan", firstScan, Icons.access_time, Colors.purple, isWide, width, isText: true),
                 kpiCard("Dernier scan", lastScan, Icons.access_time, Colors.purple, isWide, width, isText: true),
 
-                // 🔥 NOUVEAUX KPI
                 kpiCard("Taux conso", "${consumptionRate.toStringAsFixed(1)}%", Icons.percent, Colors.teal, isWide, width, isText: true),
                 kpiCard("Débit /h", flowRate.toStringAsFixed(1), Icons.speed, Colors.indigo, isWide, width, isText: true),
                 kpiCard("Heure de pointe", "${peakHour}h", Icons.timeline, Colors.deepPurple, isWide, width, isText: true),
 
+                // 🔥 NOUVEAU KPI TEMPS RÉEL
                 kpiCard(
-                  "Intervalle moyen",
-                  "${avgInterval.toStringAsFixed(0)} s",
+                  "Dernier scan",
+                  formatDuration(secondsSinceLastScan),
                   Icons.timer,
-                  isIntervalAlert ? Colors.red : Colors.brown,
+                  isIntervalAlert ? Colors.red : Colors.green,
                   isWide,
                   width,
                   isText: true,
                 ),
 
-                // 🚨 ALERTE VISUELLE
+                // 🚨 ALERTE
                 if (isIntervalAlert)
                   SizedBox(
                     width: isWide ? width / 2 : width,
                     child: Card(
                       color: Colors.red.withValues(alpha: 0.1),
-                      child: const Padding(
-                        padding: EdgeInsets.all(16),
+                      child: Padding(
+                        padding: const EdgeInsets.all(16),
                         child: Row(
                           children: [
-                            Icon(Icons.warning, color: Colors.red),
-                            SizedBox(width: 10),
-                            Text("⚠️ Intervalle trop élevé (> 30 min)")
+                            const Icon(Icons.warning, color: Colors.red),
+                            const SizedBox(width: 10),
+                            Text("⚠️ Aucun scan depuis ${formatDuration(secondsSinceLastScan)}"),
                           ],
                         ),
                       ),
@@ -204,31 +198,17 @@ class _DashboardPageState extends State<DashboardPage> {
     return SizedBox(
       width: displayWidth,
       child: Card(
-        elevation: 3,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
         child: Padding(
           padding: const EdgeInsets.all(16),
           child: Row(
             children: [
-              CircleAvatar(
-                backgroundColor: color.withValues(alpha: 0.2),
-                child: Icon(icon, color: color),
-              ),
-              const SizedBox(width: 12),
+              Icon(icon, color: color),
+              const SizedBox(width: 10),
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  isText
-                      ? Text(value.toString(),
-                          style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold))
-                      : TweenAnimationBuilder(
-                          tween: IntTween(begin: 0, end: (value as int? ?? 0)),
-                          duration: const Duration(milliseconds: 800),
-                          builder: (context, val, child) {
-                            return Text("$val",
-                                style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold));
-                          },
-                        ),
+                  Text(value.toString(),
+                      style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
                   Text(title),
                 ],
               ),
@@ -242,116 +222,96 @@ class _DashboardPageState extends State<DashboardPage> {
   Widget mealGauge(int taken) {
     final remaining = maxMeals - taken;
     return Card(
-      elevation: 3,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          children: [
-            const Text("Répartition des repas", style: TextStyle(fontWeight: FontWeight.bold)),
-            const SizedBox(height: 20),
-            SizedBox(
-              height: 200,
-              child: PieChart(
-                PieChartData(
-                  sections: [
-                    PieChartSectionData(value: taken.toDouble(), title: "Servis", color: Colors.green, radius: 60),
-                    PieChartSectionData(value: remaining.toDouble(), title: "Restants", color: Colors.orange, radius: 60),
-                  ],
-                ),
-              ),
-            ),
+      child: PieChart(
+        PieChartData(
+          sections: [
+            PieChartSectionData(value: taken.toDouble(), color: Colors.green),
+            PieChartSectionData(value: remaining.toDouble(), color: Colors.orange),
           ],
         ),
       ),
     );
   }
 
-Widget scansChart() {
-  if (hourly.isEmpty) {
-    return const SizedBox();
-  }
+  Widget scansChart() {
+    if (hourly.isEmpty) return const SizedBox();
 
-  // 🔥 Détection heure de pointe
-  int peakIndex = 0;
-  int maxValue = 0;
+    final barGroups = hourly.asMap().entries.map((entry) {
+      final index = entry.key;
+      final value = (entry.value['total'] as num).toDouble();
 
-  for (int i = 0; i < hourly.length; i++) {
-    final val = (hourly[i]['total'] as num).toInt();
-    if (val > maxValue) {
-      maxValue = val;
-      peakIndex = i;
-    }
-  }
+      return BarChartGroupData(
+        x: index,
+        barRods: [
+          BarChartRodData(toY: value, width: 16),
+        ],
+      );
+    }).toList();
 
-  final barGroups = hourly.asMap().entries.map((entry) {
-    final index = entry.key;
-    final e = entry.value;
-
-    final value = (e['total'] as num).toDouble();
-    final isPeak = index == peakIndex;
-
-    return BarChartGroupData(
-      x: index,
-      barRods: [
-        BarChartRodData(
-          toY: value,
-          width: 18,
-          borderRadius: BorderRadius.circular(6),
-          color: isPeak ? Colors.red : Colors.blue, // 🔥 pic en rouge
-        ),
-      ],
-    );
-  }).toList();
-
-  return Card(
-    elevation: 3,
-    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-    child: Padding(
-      padding: const EdgeInsets.all(20),
-      child: Column(
-        children: [
-          const Text(
-            "Flux des scans par heure",
-            style: TextStyle(fontWeight: FontWeight.bold),
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: BarChart(
+          BarChartData(
+          gridData: FlGridData(
+            show: true,
+            horizontalInterval: 5, // 🔥 lignes tous les 5
           ),
-          const SizedBox(height: 20),
-          SizedBox(
-            height: 250,
-            child: BarChart(
-              BarChartData(
-                gridData: FlGridData(show: true),
-                borderData: FlBorderData(show: false),
 
-                titlesData: FlTitlesData(
-                  bottomTitles: AxisTitles(
-                    sideTitles: SideTitles(
-                      showTitles: true,
-                      getTitlesWidget: (value, meta) {
-                        final index = value.toInt();
-                        if (index < 0 || index >= hourly.length) {
-                          return const SizedBox();
-                        }
-                        final hour = hourly[index]['hour'];
-                        return Text(
-                          "${hour}h",
-                          style: const TextStyle(fontSize: 10),
-                        );
-                      },
-                    ),
-                  ),
-                  leftTitles: AxisTitles(
-                    sideTitles: SideTitles(showTitles: true),
-                  ),
-                ),
+          borderData: FlBorderData(
+            show: true,
+            border: const Border(
+              left: BorderSide(),
+              bottom: BorderSide(),
+            ),
+          ),
 
-                barGroups: barGroups,
+          titlesData: FlTitlesData(
+            // ❌ désactiver droite
+            rightTitles: AxisTitles(
+              sideTitles: SideTitles(showTitles: false),
+            ),
+
+            // ❌ désactiver haut
+            topTitles: AxisTitles(
+              sideTitles: SideTitles(showTitles: false),
+            ),
+
+            // ✅ Axe Y (gauche) propre
+            leftTitles: AxisTitles(
+              sideTitles: SideTitles(
+                showTitles: true,
+                interval: 5, // 🔥 pas de 5
+                reservedSize: 30,
+                getTitlesWidget: (value, meta) {
+                  return Text(
+                    value.toInt().toString(),
+                    style: const TextStyle(fontSize: 10),
+                  );
+                },
+              ),
+            ),
+
+            // ✅ Axe X (heures)
+            bottomTitles: AxisTitles(
+              sideTitles: SideTitles(
+                showTitles: true,
+                getTitlesWidget: (value, meta) {
+                  final index = value.toInt();
+                  if (index < 0 || index >= hourly.length) {
+                    return const SizedBox();
+                  }
+                  final hour = hourly[index]['hour'];
+                  return Text("${hour}h", style: const TextStyle(fontSize: 10));
+                },
               ),
             ),
           ),
-        ],
+
+          barGroups: barGroups,
+        ),
+        ),
       ),
-    ),
-  );
-}
+    );
+  }
 }
