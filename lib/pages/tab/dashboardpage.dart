@@ -267,35 +267,91 @@ class _DashboardPageState extends State<DashboardPage> {
     );
   }
 
-  Widget scansChart() {
-    final spots = hourly
-        .map((e) => FlSpot((e['hour'] as num).toDouble(), (e['total'] as num).toDouble()))
-        .toList();
-    return Card(
-      elevation: 3,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          children: [
-            const Text("Flux des scans par heure", style: TextStyle(fontWeight: FontWeight.bold)),
-            const SizedBox(height: 20),
-            SizedBox(
-              height: 200,
-              child: LineChart(
-                LineChartData(
-                  gridData: FlGridData(show: true),
-                  titlesData: FlTitlesData(show: true),
-                  borderData: FlBorderData(show: false),
-                  lineBarsData: [
-                    LineChartBarData(spots: spots, isCurved: true, barWidth: 4, dotData: FlDotData(show: false)),
-                  ],
+Widget scansChart() {
+  if (hourly.isEmpty) {
+    return const SizedBox();
+  }
+
+  // 🔥 Détection heure de pointe
+  int peakIndex = 0;
+  int maxValue = 0;
+
+  for (int i = 0; i < hourly.length; i++) {
+    final val = (hourly[i]['total'] as num).toInt();
+    if (val > maxValue) {
+      maxValue = val;
+      peakIndex = i;
+    }
+  }
+
+  final barGroups = hourly.asMap().entries.map((entry) {
+    final index = entry.key;
+    final e = entry.value;
+
+    final value = (e['total'] as num).toDouble();
+    final isPeak = index == peakIndex;
+
+    return BarChartGroupData(
+      x: index,
+      barRods: [
+        BarChartRodData(
+          toY: value,
+          width: 18,
+          borderRadius: BorderRadius.circular(6),
+          color: isPeak ? Colors.red : Colors.blue, // 🔥 pic en rouge
+        ),
+      ],
+    );
+  }).toList();
+
+  return Card(
+    elevation: 3,
+    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+    child: Padding(
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        children: [
+          const Text(
+            "Flux des scans par heure",
+            style: TextStyle(fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 20),
+          SizedBox(
+            height: 250,
+            child: BarChart(
+              BarChartData(
+                gridData: FlGridData(show: true),
+                borderData: FlBorderData(show: false),
+
+                titlesData: FlTitlesData(
+                  bottomTitles: AxisTitles(
+                    sideTitles: SideTitles(
+                      showTitles: true,
+                      getTitlesWidget: (value, meta) {
+                        final index = value.toInt();
+                        if (index < 0 || index >= hourly.length) {
+                          return const SizedBox();
+                        }
+                        final hour = hourly[index]['hour'];
+                        return Text(
+                          "${hour}h",
+                          style: const TextStyle(fontSize: 10),
+                        );
+                      },
+                    ),
+                  ),
+                  leftTitles: AxisTitles(
+                    sideTitles: SideTitles(showTitles: true),
+                  ),
                 ),
+
+                barGroups: barGroups,
               ),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
-    );
-  }
+    ),
+  );
+}
 }
