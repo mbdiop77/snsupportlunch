@@ -29,10 +29,8 @@ class _DashboardPageState extends State<DashboardPage> {
   void initState() {
     super.initState();
     loadStats();
-    refreshTimer = Timer.periodic(
-      const Duration(seconds: 10),
-      (_) => loadStats(),
-    );
+    refreshTimer =
+        Timer.periodic(const Duration(seconds: 10), (_) => loadStats());
   }
 
   @override
@@ -54,7 +52,8 @@ class _DashboardPageState extends State<DashboardPage> {
                 'meals_taken': (s.first['meals_taken'] as num? ?? 0).toInt(),
                 'passages_without_meal':
                     (s.first['passages_without_meal'] as num? ?? 0).toInt(),
-                'total_passages': (s.first['total_passages'] as num? ?? 0).toInt(),
+                'total_passages':
+                    (s.first['total_passages'] as num? ?? 0).toInt(),
               }
             : {
                 'meals_taken': 0,
@@ -149,104 +148,129 @@ class _DashboardPageState extends State<DashboardPage> {
 
           return SingleChildScrollView(
             padding: const EdgeInsets.all(16),
-            child: Wrap(
-              spacing: 16,
-              runSpacing: 16,
+            child: Column(
               children: [
 
                 // ================= KPI =================
-                kpiCard("Repas servis", mealsTaken, Icons.restaurant,
-                    Colors.green, isWide, width),
-                kpiCard("Sans repas", passagesWithoutMeal, Icons.block,
-                    Colors.red, isWide, width),
-                kpiCard("Total passages", totalPassages, Icons.people,
-                    Colors.blue, isWide, width),
-                kpiCard("Repas restants", remaining, Icons.inventory,
-                    Colors.orange, isWide, width),
-
-                kpiCard("Premier scan", firstScan, Icons.access_time,
-                    Colors.purple, isWide, width,
-                    isText: true),
-                kpiCard("Dernier scan", lastScan, Icons.access_time,
-                    Colors.purple, isWide, width,
-                    isText: true),
-
-                kpiCard(
-                    "Taux conso",
-                    "${consumptionRate.toStringAsFixed(1)}%",
-                    Icons.percent,
-                    Colors.teal,
-                    isWide,
-                    width,
-                    isText: true),
-
-                kpiCard("Débit /h", flowRate.toStringAsFixed(1), Icons.speed,
-                    Colors.indigo, isWide, width,
-                    isText: true),
-
-                kpiCard("Heure de pointe", "${peakHour}h", Icons.timeline,
-                    Colors.deepPurple, isWide, width,
-                    isText: true),
-
-                kpiCard(
-                    "Dernier scan",
-                    formatDuration(secondsSinceLastScan),
-                    Icons.timer,
-                    isIntervalAlert ? Colors.red : Colors.green,
-                    isWide,
-                    width,
-                    isText: true),
-
-                // ================= ALERTE =================
+                // ================= ALERT =================
                 if (isIntervalAlert)
                   SizedBox(
-                    width: isWide ? width / 2 : width,
+                //    width: isWide ? width / 2 : width,
                     child: Card(
                       color: Colors.red.withValues(alpha: 0.1),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        side: const BorderSide(color: Colors.red),
-                      ),
                       child: Padding(
                         padding: const EdgeInsets.all(16),
-                        child: Row(
-                          children: [
-                            const Icon(Icons.warning, color: Colors.red),
-                            const SizedBox(width: 10),
-                            Expanded(
-                              child: Text(
-                                "⚠️ Aucun scan depuis ${formatDuration(secondsSinceLastScan)}",
-                                style: const TextStyle(
-                                    fontWeight: FontWeight.bold),
-                              ),
-                            ),
-                          ],
+                        child: Text(
+                          "⚠️ Aucun scan depuis ${formatDuration(secondsSinceLastScan)}",
                         ),
                       ),
                     ),
                   ),
 
-                // ================= JAUGE =================
-                SizedBox(
-                  width: isWide ? width / 2 - 20 : width,
-                  height: 320,
-                  child: Card(
-                    child: Padding(
-                      padding: const EdgeInsets.all(12),
-                      child: mealGauge(mealsTaken),
-                    ),
-                  ),
+                const SizedBox(height: 20),
+                Wrap(
+                  spacing: 16,
+                  runSpacing: 16,
+                  alignment: WrapAlignment.center,
+                  children: [
+                    kpiCard("Repas servis", mealsTaken, Icons.restaurant,
+                        Colors.green, isWide, width),
+                    kpiCard("Sans repas", passagesWithoutMeal, Icons.block,
+                        Colors.red, isWide, width),
+                    kpiCard("Total passages", totalPassages, Icons.people,
+                        Colors.blue, isWide, width),
+                    kpiCard("Repas restants", remaining, Icons.inventory,
+                        Colors.orange, isWide, width),
+                    kpiCard("Premier scan", firstScan, Icons.access_time,
+                        Colors.purple, isWide, width,
+                        isText: true),
+                    kpiCard("Dernier scan", lastScan, Icons.access_time,
+                        Colors.purple, isWide, width,
+                        isText: true),
+                    kpiCard(
+                        "Taux conso",
+                        "${consumptionRate.toStringAsFixed(1)}%",
+                        Icons.percent,
+                        Colors.teal,
+                        isWide,
+                        width,
+                        isText: true),
+                    kpiCard("Débit /h", flowRate.toStringAsFixed(1),
+                        Icons.speed, Colors.indigo, isWide, width,
+                        isText: true),
+                    kpiCard("Heure de pointe", "${peakHour}h",
+                        Icons.timeline, Colors.deepPurple, isWide, width,
+                        isText: true),
+                 //   kpiCard(
+                   //     "Dernier scan",
+                     //   formatDuration(secondsSinceLastScan),
+                    //    Icons.timer,
+                      //  isIntervalAlert ? Colors.red : Colors.green,
+                      //  isWide,
+                      //  width,
+                      //  isText: true),
+                  ],
                 ),
 
-                // ================= GRAPHIQUE =================
-                SizedBox(
-                  width: isWide ? width / 2 - 20 : width,
-                  height: 320,
-                  child: Card(
-                    child: Padding(
-                      padding: const EdgeInsets.all(12),
-                      child: scansChart(),
-                    ),
+                const SizedBox(height: 20),
+
+                
+
+                // ================= CHARTS =================
+                Center(
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 1000),
+                    child: isWide
+                        ? Row(
+                            children: [
+                              Expanded(
+                                child: SizedBox(
+                                  height: 280,
+                                  child: Card(
+                                    child: Padding(
+                                      padding: const EdgeInsets.all(12),
+                                      child: mealGauge(mealsTaken),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 16),
+                              Expanded(
+                                child: SizedBox(
+                                  height: 280,
+                                  child: Card(
+                                    child: Padding(
+                                      padding: const EdgeInsets.all(12),
+                                      child: scansChart(),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          )
+                        : Column(
+                            children: [
+                              SizedBox(
+                                height: 250,
+                                child: Card(
+                                  child: Padding(
+                                    padding: const EdgeInsets.all(12),
+                                    child: mealGauge(mealsTaken),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(height: 16),
+                              SizedBox(
+                                height: 250,
+                                child: Card(
+                                  child: Padding(
+                                    padding: const EdgeInsets.all(12),
+                                    child: scansChart(),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
                   ),
                 ),
               ],
@@ -257,123 +281,56 @@ class _DashboardPageState extends State<DashboardPage> {
     );
   }
 
-  // ================= KPI =================
-  Widget kpiCard(
-    String title,
-    dynamic value,
-    IconData icon,
-    Color color,
-    bool isWide,
-    double width, {
-    bool isText = false,
-  }) {
+  Widget kpiCard(String title, dynamic value, IconData icon, Color color,
+      bool isWide, double width,
+      {bool isText = false}) {
     final displayWidth = isWide ? width / 4 - 20 : width;
 
     return SizedBox(
       width: displayWidth,
       height: 85,
       child: Card(
-        elevation: 3,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(14),
-        ),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-          child: Row(
-            children: [
-              CircleAvatar(
-                radius: 18,
-                backgroundColor: color.withValues(alpha: 0.15),
-                child: Icon(icon, color: color, size: 18),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      value.toString(),
-                      style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    Text(
-                      title,
-                      style: const TextStyle(fontSize: 11),
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
+        child: Row(
+          children: [
+            CircleAvatar(
+              backgroundColor: color.withValues(alpha: 0.15),
+              child: Icon(icon, color: color),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text("$value\n$title"),
+            ),
+          ],
         ),
       ),
     );
   }
 
-  // ================= JAUGE =================
   Widget mealGauge(int taken) {
     final remaining = maxMeals - taken;
 
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        return PieChart(
-          PieChartData(
-            centerSpaceRadius: 45,
-            sectionsSpace: 2,
-            sections: [
-              PieChartSectionData(
-                value: taken.toDouble(),
-                color: Colors.green,
-                radius: constraints.maxWidth * 0.35,
-                title: '',
-              ),
-              PieChartSectionData(
-                value: remaining.toDouble(),
-                color: Colors.orange,
-                radius: constraints.maxWidth * 0.35,
-                title: '',
-              ),
-            ],
-          ),
-        );
-      },
+    return PieChart(
+      PieChartData(
+        sections: [
+          PieChartSectionData(value: taken.toDouble(), color: Colors.green),
+          PieChartSectionData(value: remaining.toDouble(), color: Colors.orange),
+        ],
+      ),
     );
   }
 
-  // ================= GRAPHIQUE =================
   Widget scansChart() {
-    if (hourly.isEmpty) {
-      return const Center(child: Text("Aucune donnée"));
-    }
+    if (hourly.isEmpty) return const Center(child: Text("Aucune donnée"));
 
     final barGroups = hourly.asMap().entries.map((entry) {
-      final index = entry.key;
-      final value = (entry.value['total'] as num).toDouble();
-
       return BarChartGroupData(
-        x: index,
+        x: entry.key,
         barRods: [
-          BarChartRodData(
-            toY: value,
-            width: 14,
-            borderRadius: BorderRadius.circular(4),
-          ),
+          BarChartRodData(toY: (entry.value['total'] as num).toDouble()),
         ],
       );
     }).toList();
 
-    return BarChart(
-      BarChartData(
-        minY: 0,
-        gridData: const FlGridData(show: true),
-        borderData: FlBorderData(show: true),
-        titlesData: const FlTitlesData(show: true),
-        barGroups: barGroups,
-      ),
-    );
+    return BarChart(BarChartData(barGroups: barGroups));
   }
 }
