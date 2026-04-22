@@ -14,18 +14,25 @@ class DashboardPage extends StatefulWidget {
 class _DashboardPageState extends State<DashboardPage> {
   final supabase = Supabase.instance.client;
 
+  Map<String, int> stats = {
+    'meals_taken': 0,
+    'passages_without_meal': 0,
+    'total_passages': 0,
+  };
+
+  List<Map<String, dynamic>> hourly = [];
   static const int maxMeals = 300;
 
   Timer? refreshTimer;
-
-  Map<String, int> stats = {};
-  List<Map<String, dynamic>> hourly = [];
 
   @override
   void initState() {
     super.initState();
     loadStats();
-    refreshTimer = Timer.periodic(const Duration(seconds: 10), (_) => loadStats());
+
+    refreshTimer = Timer.periodic(const Duration(seconds: 10), (_) {
+      loadStats();
+    });
   }
 
   @override
@@ -42,38 +49,38 @@ class _DashboardPageState extends State<DashboardPage> {
       if (!mounted) return;
 
       setState(() {
-        stats = _parseStats(s);
-        hourly = _parseHourly(h);
+        stats = s is List && s.isNotEmpty
+            ? {
+                'meals_taken': (s.first['meals_taken'] as num? ?? 0).toInt(),
+                'passages_without_meal':
+                    (s.first['passages_without_meal'] as num? ?? 0).toInt(),
+                'total_passages': (s.first['total_passages'] as num? ?? 0).toInt(),
+              }
+            : {'meals_taken': 0, 'passages_without_meal': 0, 'total_passages': 0};
+
+        hourly = h is List ? List<Map<String, dynamic>>.from(h) : [];
       });
-    } catch (_) {}
-  }
-
-  Map<String, int> _parseStats(dynamic s) {
-    if (s is List && s.isNotEmpty) {
-      return {
-        'meals_taken': (s.first['meals_taken'] as num? ?? 0).toInt(),
-        'passages_without_meal': (s.first['passages_without_meal'] as num? ?? 0).toInt(),
-        'total_passages': (s.first['total_passages'] as num? ?? 0).toInt(),
-      };
+    } catch (e) {
+      debugPrint("Erreur loadStats: $e");
     }
-    return {'meals_taken': 0, 'passages_without_meal': 0, 'total_passages': 0};
   }
 
-  List<Map<String, dynamic>> _parseHourly(dynamic h) {
-    return h is List ? List<Map<String, dynamic>>.from(h) : [];
+  String formatTime(String? iso) {
+    if (iso == null) return "--";
+    final dt = DateTime.tryParse(iso);
+    if (dt == null) return "--";
+    return DateFormat.Hm().format(dt);
   }
 
   Stream<List<Map<String, dynamic>>> streamToday() {
     final today = DateFormat('yyyy-MM-dd').format(DateTime.now());
-    return supabase
-        .from('scans_meal')
-        .stream(primaryKey: ['id'])
-        .eq('scan_date', today);
+    return supabase.from('scans_meal').stream(primaryKey: ['id']).eq('scan_date', today);
   }
 
   @override
   Widget build(BuildContext context) {
-    final isWide = MediaQuery.of(context).size.width > 900;
+    final width = MediaQuery.of(context).size.width;
+    final isWide = width > 900;
 
     return Scaffold(
       body: StreamBuilder<List<Map<String, dynamic>>>(
@@ -81,213 +88,212 @@ class _DashboardPageState extends State<DashboardPage> {
         builder: (context, snapshot) {
           final scans = snapshot.data ?? [];
 
-          final computed = DashboardCalculator.compute(stats, hourly, scans);
+          scans.sort((a, b) => (a['scanned_at'] ?? '').compareTo(b['scanned_at'] ?? ''));
 
-          return DashboardView(
-            isWide: isWide,
-            computed: computed,
+          String firstScan = "--";
+          String lastScan = "--";
+          if (scans.isNotEmpty) {
+            firstScan = formatTime(scans.first['scanned_at']);
+            lastScan = formatTime(scans.last['scanned_at']);
+          }
+
+          final mealsTaken = stats['meals_taken'] ?? 0;
+          final passagesWithoutMeal = stats['passages_without_meal'] ?? 0;
+          final totalPassages = stats['total_passages'] ?? 0;
+          final remaining = maxMeals - mealsTaken;
+
+          // 🔥 NOUVEAUX CALCULS
+          final consumptionRate = maxMeals > 0 ? (mealsTaken / maxMeals * 100) : 0;
+
+          double flowRate = 0;
+          if (hourly.isNotEmpty) {
+            final total = hourly.fold<num>(0, (sum, e) => sum + (e['total'] as num));
+            flowRate = total / hourly.length;
+          }
+
+          int peakHour = 0;
+          int maxValue = 0;
+          for (var e in hourly) {
+            final val = (e['total'] as num).toInt();
+            if (val > maxValue) {
+              maxValue = val;
+              peakHour = (e['hour'] as num).toInt();
+            }
+          }
+
+          double avgInterval = 0;
+          if (scans.length > 1) {
+            List<DateTime> times = scans
+                .map((e) => DateTime.tryParse(e['scanned_at'] ?? ''))
+                .whereType<DateTime>()
+                .toList();
+
+            times.sort();
+
+            int totalSeconds = 0;
+            for (int i = 1; i < times.length; i++) {
+              totalSeconds += times[i].difference(times[i - 1]).inSeconds;
+            }
+
+            avgInterval = totalSeconds / (times.length - 1);
+          }
+
+          final isIntervalAlert = avgInterval > 1800; // 30 min
+
+          return SingleChildScrollView(
+            padding: const EdgeInsets.all(16),
+            child: Wrap(
+              spacing: 16,
+              runSpacing: 16,
+              children: [
+                kpiCard("Repas servis", mealsTaken, Icons.restaurant, Colors.green, isWide, width),
+                kpiCard("Sans repas", passagesWithoutMeal, Icons.block, Colors.red, isWide, width),
+                kpiCard("Total passages", totalPassages, Icons.people, Colors.blue, isWide, width),
+                kpiCard("Repas restants", remaining, Icons.inventory, Colors.orange, isWide, width),
+
+                kpiCard("Premier scan", firstScan, Icons.access_time, Colors.purple, isWide, width, isText: true),
+                kpiCard("Dernier scan", lastScan, Icons.access_time, Colors.purple, isWide, width, isText: true),
+
+                // 🔥 NOUVEAUX KPI
+                kpiCard("Taux conso", "${consumptionRate.toStringAsFixed(1)}%", Icons.percent, Colors.teal, isWide, width, isText: true),
+                kpiCard("Débit /h", flowRate.toStringAsFixed(1), Icons.speed, Colors.indigo, isWide, width, isText: true),
+                kpiCard("Heure de pointe", "${peakHour}h", Icons.timeline, Colors.deepPurple, isWide, width, isText: true),
+
+                kpiCard(
+                  "Intervalle moyen",
+                  "${avgInterval.toStringAsFixed(0)} s",
+                  Icons.timer,
+                  isIntervalAlert ? Colors.red : Colors.brown,
+                  isWide,
+                  width,
+                  isText: true,
+                ),
+
+                // 🚨 ALERTE VISUELLE
+                if (isIntervalAlert)
+                  SizedBox(
+                    width: isWide ? width / 2 : width,
+                    child: Card(
+                      color: Colors.red.withValues(alpha: 0.1),
+                      child: const Padding(
+                        padding: EdgeInsets.all(16),
+                        child: Row(
+                          children: [
+                            Icon(Icons.warning, color: Colors.red),
+                            SizedBox(width: 10),
+                            Text("⚠️ Intervalle trop élevé (> 30 min)")
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+
+                SizedBox(width: isWide ? width / 4 - 20 : width, child: mealGauge(mealsTaken)),
+                SizedBox(width: isWide ? width / 4 - 20 : width, height: 300, child: scansChart()),
+              ],
+            ),
           );
         },
       ),
     );
   }
-}
 
-// ================= CALCULATOR =================
-class DashboardCalculator {
-  static DashboardData compute(
-    Map<String, int> stats,
-    List<Map<String, dynamic>> hourly,
-    List<Map<String, dynamic>> scans,
-  ) {
-    scans.sort((a, b) => (a['scanned_at'] ?? '').compareTo(b['scanned_at'] ?? ''));
-
-    final mealsTaken = stats['meals_taken'] ?? 0;
-    final remaining = _remaining(mealsTaken);
-
-    return DashboardData(
-      mealsTaken: mealsTaken,
-      passagesWithoutMeal: stats['passages_without_meal'] ?? 0,
-      totalPassages: stats['total_passages'] ?? 0,
-      remaining: remaining,
-      consumptionRate: _consumption(mealsTaken),
-      flowRate: _flow(hourly),
-      peakHour: _peak(hourly),
-      avgInterval: _interval(scans),
-      firstScan: _format(scans.isNotEmpty ? scans.first['scanned_at'] : null),
-      lastScan: _format(scans.isNotEmpty ? scans.last['scanned_at'] : null),
-      hourly: hourly,
-    );
-  }
-
-  static int _remaining(int taken) => _DashboardPageState.maxMeals - taken;
-
-  static double _consumption(int taken) =>
-      _DashboardPageState.maxMeals > 0 ? (taken / _DashboardPageState.maxMeals * 100) : 0;
-
-  static double _flow(List<Map<String, dynamic>> hourly) {
-    if (hourly.isEmpty) return 0;
-    final total = hourly.fold<num>(0, (s, e) => s + (e['total'] as num));
-    return total / hourly.length;
-  }
-
-  static int _peak(List<Map<String, dynamic>> hourly) {
-    int peak = 0, max = 0;
-    for (var e in hourly) {
-      final val = (e['total'] as num).toInt();
-      if (val > max) {
-        max = val;
-        peak = (e['hour'] as num).toInt();
-      }
-    }
-    return peak;
-  }
-
-  static double _interval(List<Map<String, dynamic>> scans) {
-    if (scans.length < 2) return 0;
-
-    final times = scans
-        .map((e) => DateTime.tryParse(e['scanned_at'] ?? ''))
-        .whereType<DateTime>()
-        .toList()
-      ..sort();
-
-    int total = 0;
-    for (int i = 1; i < times.length; i++) {
-      total += times[i].difference(times[i - 1]).inSeconds;
-    }
-
-    return total / (times.length - 1);
-  }
-
-  static String _format(String? iso) {
-    if (iso == null) return "--";
-    final dt = DateTime.tryParse(iso);
-    return dt != null ? DateFormat.Hm().format(dt) : "--";
-  }
-}
-
-// ================= MODEL =================
-class DashboardData {
-  final int mealsTaken;
-  final int passagesWithoutMeal;
-  final int totalPassages;
-  final int remaining;
-  final double consumptionRate;
-  final double flowRate;
-  final int peakHour;
-  final double avgInterval;
-  final String firstScan;
-  final String lastScan;
-  final List<Map<String, dynamic>> hourly;
-
-  DashboardData({
-    required this.mealsTaken,
-    required this.passagesWithoutMeal,
-    required this.totalPassages,
-    required this.remaining,
-    required this.consumptionRate,
-    required this.flowRate,
-    required this.peakHour,
-    required this.avgInterval,
-    required this.firstScan,
-    required this.lastScan,
-    required this.hourly,
-  });
-}
-
-// ================= UI =================
-class DashboardView extends StatelessWidget {
-  final bool isWide;
-  final DashboardData computed;
-
-  const DashboardView({super.key, required this.isWide, required this.computed});
-
-  @override
-  Widget build(BuildContext context) {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
-      child: Wrap(
-        spacing: 16,
-        runSpacing: 16,
-        children: [
-          ..._kpis(context),
-          ChartCard(hourly: computed.hourly, isWide: isWide),
-        ],
-      ),
-    );
-  }
-
-  List<Widget> _kpis(BuildContext context) {
-    return [
-      KpiCard("Repas", computed.mealsTaken, Icons.restaurant, Colors.green),
-      KpiCard("Restants", computed.remaining, Icons.inventory, Colors.orange),
-      KpiCard("Conso", "${computed.consumptionRate.toStringAsFixed(1)}%", Icons.percent, Colors.teal, isText: true),
-      KpiCard("Débit", computed.flowRate.toStringAsFixed(1), Icons.speed, Colors.indigo, isText: true),
-      KpiCard("Pic", "${computed.peakHour}h", Icons.timeline, Colors.purple, isText: true),
-      KpiCard("Intervalle", "${computed.avgInterval.toStringAsFixed(1)}s", Icons.timer, Colors.brown, isText: true),
-    ];
-  }
-}
-
-class KpiCard extends StatelessWidget {
-  final String title;
-  final dynamic value;
-  final IconData icon;
-  final Color color;
-  final bool isText;
-
-  const KpiCard(this.title, this.value, this.icon, this.color, {this.isText = false, super.key});
-
-  @override
-  Widget build(BuildContext context) {
+  Widget kpiCard(String title, dynamic value, IconData icon, Color color, bool isWide, double width,
+      {bool isText = false}) {
+    final displayWidth = isWide ? width / 4 - 20 : width;
     return SizedBox(
-      width: MediaQuery.of(context).size.width > 900
-          ? MediaQuery.of(context).size.width / 4 - 20
-          : double.infinity,
+      width: displayWidth,
       child: Card(
+        elevation: 3,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
         child: Padding(
           padding: const EdgeInsets.all(16),
           child: Row(
             children: [
-              Icon(icon, color: color),
-              const SizedBox(width: 10),
-              Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text(value.toString(), style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-                Text(title)
-              ])
+              CircleAvatar(
+                backgroundColor: color.withValues(alpha: 0.2),
+                child: Icon(icon, color: color),
+              ),
+              const SizedBox(width: 12),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  isText
+                      ? Text(value.toString(),
+                          style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold))
+                      : TweenAnimationBuilder(
+                          tween: IntTween(begin: 0, end: (value as int? ?? 0)),
+                          duration: const Duration(milliseconds: 800),
+                          builder: (context, val, child) {
+                            return Text("$val",
+                                style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold));
+                          },
+                        ),
+                  Text(title),
+                ],
+              ),
             ],
           ),
         ),
       ),
     );
   }
-}
 
-class ChartCard extends StatelessWidget {
-  final List<Map<String, dynamic>> hourly;
-  final bool isWide;
+  Widget mealGauge(int taken) {
+    final remaining = maxMeals - taken;
+    return Card(
+      elevation: 3,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          children: [
+            const Text("Répartition des repas", style: TextStyle(fontWeight: FontWeight.bold)),
+            const SizedBox(height: 20),
+            SizedBox(
+              height: 200,
+              child: PieChart(
+                PieChartData(
+                  sections: [
+                    PieChartSectionData(value: taken.toDouble(), title: "Servis", color: Colors.green, radius: 60),
+                    PieChartSectionData(value: remaining.toDouble(), title: "Restants", color: Colors.orange, radius: 60),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 
-  const ChartCard({super.key, required this.hourly, required this.isWide});
-
-  @override
-  Widget build(BuildContext context) {
+  Widget scansChart() {
     final spots = hourly
         .map((e) => FlSpot((e['hour'] as num).toDouble(), (e['total'] as num).toDouble()))
         .toList();
-
-    return SizedBox(
-      width: isWide ? MediaQuery.of(context).size.width / 2 : double.infinity,
-      child: Card(
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: LineChart(
-            LineChartData(
-              lineBarsData: [
-                LineChartBarData(spots: spots, isCurved: true, barWidth: 3),
-              ],
+    return Card(
+      elevation: 3,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          children: [
+            const Text("Flux des scans par heure", style: TextStyle(fontWeight: FontWeight.bold)),
+            const SizedBox(height: 20),
+            SizedBox(
+              height: 200,
+              child: LineChart(
+                LineChartData(
+                  gridData: FlGridData(show: true),
+                  titlesData: FlTitlesData(show: true),
+                  borderData: FlBorderData(show: false),
+                  lineBarsData: [
+                    LineChartBarData(spots: spots, isCurved: true, barWidth: 4, dotData: FlDotData(show: false)),
+                  ],
+                ),
+              ),
             ),
-          ),
+          ],
         ),
       ),
     );
