@@ -170,7 +170,7 @@ class _DashboardPageState extends State<DashboardPage> {
                 // 🚨 ALERTE VISUELLE CORRIGÉE
                 if (isIntervalAlert)
                   SizedBox(
-                    width: isWide ? width / 2 : width,
+                   // width: isWide ? width / 2 : width,
                     child: Card(
                       color: Colors.red.withValues(alpha: 0.1),
                       shape: RoundedRectangleBorder(
