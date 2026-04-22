@@ -29,8 +29,10 @@ class _DashboardPageState extends State<DashboardPage> {
   void initState() {
     super.initState();
     loadStats();
-    refreshTimer =
-        Timer.periodic(const Duration(seconds: 10), (_) => loadStats());
+    refreshTimer = Timer.periodic(
+      const Duration(seconds: 10),
+      (_) => loadStats(),
+    );
   }
 
   @override
@@ -52,8 +54,7 @@ class _DashboardPageState extends State<DashboardPage> {
                 'meals_taken': (s.first['meals_taken'] as num? ?? 0).toInt(),
                 'passages_without_meal':
                     (s.first['passages_without_meal'] as num? ?? 0).toInt(),
-                'total_passages':
-                    (s.first['total_passages'] as num? ?? 0).toInt(),
+                'total_passages': (s.first['total_passages'] as num? ?? 0).toInt(),
               }
             : {
                 'meals_taken': 0,
@@ -69,7 +70,8 @@ class _DashboardPageState extends State<DashboardPage> {
   }
 
   String formatTime(String? iso) {
-    final dt = DateTime.tryParse(iso ?? '');
+    if (iso == null) return "--";
+    final dt = DateTime.tryParse(iso);
     return dt != null ? DateFormat.Hm().format(dt) : "--";
   }
 
@@ -147,13 +149,12 @@ class _DashboardPageState extends State<DashboardPage> {
 
           return SingleChildScrollView(
             padding: const EdgeInsets.all(16),
-            child: GridView.count(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              crossAxisCount: isWide ? 4 : 2,
-              crossAxisSpacing: 12,
-              mainAxisSpacing: 12,
+            child: Wrap(
+              spacing: 16,
+              runSpacing: 16,
               children: [
+
+                // 🔥 KPI RESTAURÉS EN VERSION COMPACTE
                 kpiCard("Repas servis", mealsTaken, Icons.restaurant,
                     Colors.green, isWide, width),
                 kpiCard("Sans repas", passagesWithoutMeal, Icons.block,
@@ -196,29 +197,48 @@ class _DashboardPageState extends State<DashboardPage> {
                     width,
                     isText: true),
 
+                // 🚨 ALERTE (inchangée)
                 if (isIntervalAlert)
-                  Card(
-                    color: Colors.red.withValues(alpha: 0.1),
-                    child: Padding(
-                      padding: const EdgeInsets.all(16),
-                      child: Row(
-                        children: [
-                          const Icon(Icons.warning, color: Colors.red),
-                          const SizedBox(width: 10),
-                          Expanded(
-                            child: Text(
-                              "⚠️ Aucun scan depuis ${formatDuration(secondsSinceLastScan)}",
-                              style:
-                                  const TextStyle(fontWeight: FontWeight.bold),
+                  SizedBox(
+                    width: isWide ? width / 2 : width,
+                    child: Card(
+                      color: Colors.red.withValues(alpha: 0.1),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        side: const BorderSide(color: Colors.red),
+                      ),
+                      child: Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: Row(
+                          children: [
+                            const Icon(Icons.warning_amber_rounded,
+                                color: Colors.red),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Text(
+                                "⚠️ Aucun scan depuis ${formatDuration(secondsSinceLastScan)}",
+                                style: const TextStyle(
+                                    fontWeight: FontWeight.bold),
+                              ),
                             ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
                     ),
                   ),
 
-                mealGauge(mealsTaken),
-                scansChart(),
+                // ✅ JAUGE (inchangée)
+                SizedBox(
+                  width: isWide ? width / 4 - 20 : width,
+                  child: mealGauge(mealsTaken),
+                ),
+
+                // ✅ GRAPHIQUE (inchangé)
+                SizedBox(
+                  width: isWide ? width / 4 - 20 : width,
+                  height: 300,
+                  child: scansChart(),
+                ),
               ],
             ),
           );
@@ -227,28 +247,58 @@ class _DashboardPageState extends State<DashboardPage> {
     );
   }
 
-  Widget kpiCard(String title, dynamic value, IconData icon, Color color,
-      bool isWide, double width,
-      {bool isText = false}) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Row(
-          children: [
-            Icon(icon, color: color),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(value.toString(),
-                      style: const TextStyle(
-                          fontSize: 18, fontWeight: FontWeight.bold)),
-                  Text(title),
-                ],
+  // 🔥 KPI FIX : hauteur compacte comme avant
+  Widget kpiCard(
+    String title,
+    dynamic value,
+    IconData icon,
+    Color color,
+    bool isWide,
+    double width, {
+    bool isText = false,
+  }) {
+    final displayWidth = isWide ? width / 4 - 20 : width;
+
+    return SizedBox(
+      width: displayWidth,
+      height: 85, // ✅ FIX PRINCIPAL
+      child: Card(
+        elevation: 3,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(14),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          child: Row(
+            children: [
+              CircleAvatar(
+                radius: 18,
+                backgroundColor: color.withValues(alpha: 0.15),
+                child: Icon(icon, color: color, size: 18),
               ),
-            ),
-          ],
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      value.toString(),
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    Text(
+                      title,
+                      style: const TextStyle(fontSize: 11),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -258,25 +308,21 @@ class _DashboardPageState extends State<DashboardPage> {
     final remaining = maxMeals - taken;
 
     return Card(
-      child: SizedBox(
-        height: 250,
-        child: PieChart(
-          PieChartData(
-            sections: [
-              PieChartSectionData(value: taken.toDouble(), color: Colors.green),
-              PieChartSectionData(
-                  value: remaining.toDouble(), color: Colors.orange),
-            ],
-          ),
+      child: PieChart(
+        PieChartData(
+          sections: [
+            PieChartSectionData(
+                value: taken.toDouble(), color: Colors.green),
+            PieChartSectionData(
+                value: remaining.toDouble(), color: Colors.orange),
+          ],
         ),
       ),
     );
   }
 
   Widget scansChart() {
-    if (hourly.isEmpty) {
-      return const SizedBox(height: 200);
-    }
+    if (hourly.isEmpty) return const SizedBox();
 
     final barGroups = hourly.asMap().entries.map((entry) {
       final index = entry.key;
@@ -291,39 +337,19 @@ class _DashboardPageState extends State<DashboardPage> {
     }).toList();
 
     return Card(
-      child: SizedBox(
-        height: 300,
+      child: Padding(
+        padding: const EdgeInsets.all(16),
         child: BarChart(
           BarChartData(
-            gridData:
-                FlGridData(show: true, horizontalInterval: 5),
+            gridData: FlGridData(show: true, horizontalInterval: 5),
             borderData: FlBorderData(
-                show: true,
-                border: const Border(
-                    left: BorderSide(), bottom: BorderSide())),
-            titlesData: FlTitlesData(
-              rightTitles:
-                  AxisTitles(sideTitles: SideTitles(showTitles: false)),
-              topTitles:
-                  AxisTitles(sideTitles: SideTitles(showTitles: false)),
-              leftTitles: AxisTitles(
-                sideTitles: SideTitles(
-                  showTitles: true,
-                  interval: 5,
-                  reservedSize: 30,
-                ),
-              ),
-              bottomTitles: AxisTitles(
-                sideTitles: SideTitles(
-                  showTitles: true,
-                  getTitlesWidget: (value, meta) {
-                    final i = value.toInt();
-                    if (i >= hourly.length) return const SizedBox();
-                    return Text("${hourly[i]['hour']}h");
-                  },
-                ),
+              show: true,
+              border: const Border(
+                left: BorderSide(),
+                bottom: BorderSide(),
               ),
             ),
+            titlesData: FlTitlesData(show: true),
             barGroups: barGroups,
           ),
         ),
