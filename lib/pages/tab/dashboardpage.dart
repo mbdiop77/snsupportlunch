@@ -153,15 +153,56 @@ class _DashboardPageState extends State<DashboardPage> {
 
                 // ================= KPI =================
                 // ================= ALERT =================
-                if (isIntervalAlert)
+                if (isIntervalAlert &&
+                    DateTime.now().hour >= 12 &&
+                    DateTime.now().hour < 18)
                   SizedBox(
-                //    width: isWide ? width / 2 : width,
+                    width: double.infinity, // ✅ pleine largeur
                     child: Card(
-                      color: Colors.red.withValues(alpha: 0.1),
+                      color: Colors.red.withValues(alpha: 0.08),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        side: const BorderSide(color: Colors.red),
+                      ),
+                      elevation: 2,
                       child: Padding(
-                        padding: const EdgeInsets.all(0),
-                        child: Text(
-                          "⚠️ Aucun scan depuis ${formatDuration(secondsSinceLastScan)}",
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                        child: Row(
+                          children: [
+                            // 🔴 ICÔNE WARNING
+                            Container(
+                              padding: const EdgeInsets.all(8),
+                              decoration: BoxDecoration(
+                                color: Colors.red.withValues(alpha: 0.15),
+                                shape: BoxShape.circle,
+                              ),
+                              child: const Icon(
+                                Icons.warning_amber_rounded,
+                                color: Colors.red,
+                                size: 22,
+                              ),
+                            ),
+
+                            const SizedBox(width: 12),
+
+                            // 📝 TEXTE
+                            Expanded(
+                              child: RichText(
+                                text: TextSpan(
+                                  style: const TextStyle(
+                                    fontSize: 13,
+                                    color: Colors.black87,
+                                  ),
+                                  children: [
+                                    TextSpan(
+                                      text:
+                                          "aucun scan depuis ${formatDuration(secondsSinceLastScan)}",
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                     ),
