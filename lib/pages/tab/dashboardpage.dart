@@ -159,7 +159,7 @@ class _DashboardPageState extends State<DashboardPage> {
                     child: Card(
                       color: Colors.red.withValues(alpha: 0.1),
                       child: Padding(
-                        padding: const EdgeInsets.all(16),
+                        padding: const EdgeInsets.all(0),
                         child: Text(
                           "⚠️ Aucun scan depuis ${formatDuration(secondsSinceLastScan)}",
                         ),
@@ -167,7 +167,7 @@ class _DashboardPageState extends State<DashboardPage> {
                     ),
                   ),
 
-                const SizedBox(height: 20),
+                const SizedBox(height: 05),
                 Wrap(
                   spacing: 16,
                   runSpacing: 16,
@@ -319,18 +319,93 @@ class _DashboardPageState extends State<DashboardPage> {
     );
   }
 
-  Widget scansChart() {
-    if (hourly.isEmpty) return const Center(child: Text("Aucune donnée"));
-
-    final barGroups = hourly.asMap().entries.map((entry) {
-      return BarChartGroupData(
-        x: entry.key,
-        barRods: [
-          BarChartRodData(toY: (entry.value['total'] as num).toDouble()),
-        ],
-      );
-    }).toList();
-
-    return BarChart(BarChartData(barGroups: barGroups));
+Widget scansChart() {
+  if (hourly.isEmpty) {
+    return const Center(child: Text("Aucune donnée"));
   }
+
+  final barGroups = hourly.asMap().entries.map((entry) {
+    final index = entry.key;
+    final value = (entry.value['total'] as num).toDouble();
+
+    return BarChartGroupData(
+      x: index,
+      barRods: [
+        BarChartRodData(
+          toY: value,
+          width: 12,
+          borderRadius: BorderRadius.circular(4),
+        ),
+      ],
+    );
+  }).toList();
+
+  return BarChart(
+    BarChartData(
+      minY: 0,
+
+      // ✅ AXES CONFIGURÉS PROPREMENT
+      titlesData: FlTitlesData(
+        topTitles: AxisTitles(
+          sideTitles: SideTitles(showTitles: false), // ❌ supprimé
+        ),
+        rightTitles: AxisTitles(
+          sideTitles: SideTitles(showTitles: false), // ❌ supprimé
+        ),
+
+        // ✅ AXE HORIZONTAL = HEURES
+        bottomTitles: AxisTitles(
+          sideTitles: SideTitles(
+            showTitles: true,
+            interval: 1,
+            getTitlesWidget: (value, meta) {
+              final index = value.toInt();
+              if (index < 0 || index >= hourly.length) {
+                return const SizedBox();
+              }
+
+              final hour = hourly[index]['hour'];
+              return Padding(
+                padding: const EdgeInsets.only(top: 6),
+                child: Text("${hour}h",
+                    style: const TextStyle(fontSize: 10)),
+              );
+            },
+          ),
+        ),
+
+        // ✅ AXE VERTICAL = PAS DE 5
+        leftTitles: AxisTitles(
+          sideTitles: SideTitles(
+            showTitles: true,
+            interval: 5,
+            reservedSize: 30,
+            getTitlesWidget: (value, meta) {
+              return Text(
+                value.toInt().toString(),
+                style: const TextStyle(fontSize: 10),
+              );
+            },
+          ),
+        ),
+      ),
+
+      // ✅ GRID PROPRE
+      gridData: FlGridData(
+        show: true,
+        horizontalInterval: 5,
+      ),
+
+      borderData: FlBorderData(
+        show: true,
+        border: const Border(
+          left: BorderSide(),
+          bottom: BorderSide(),
+        ),
+      ),
+
+      barGroups: barGroups,
+    ),
+  );
+}
 }
