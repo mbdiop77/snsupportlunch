@@ -15,29 +15,16 @@ class _WeeklyMenuAdminState extends State<WeeklyMenuAdmin> {
   List<Map<String, dynamic>> meals = [];
   late List<DayMenu> weekMenus;
 
-  final List<Color> dayColors = [
-    Colors.blue,
-    Colors.green,
-    Colors.orange,
-    Colors.purple,
-    Colors.teal,
-    Colors.indigo,
-    Colors.red
-  ];
-
   @override
   void initState() {
     super.initState();
     initializeWeekMenus();
   }
 
-  // ================= SAFE SNACK =================
   void showSnack(String message) {
     if (!mounted) return;
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message)),
-    );
+    ScaffoldMessenger.of(context)
+        .showSnackBar(SnackBar(content: Text(message)));
   }
 
   // ================= INIT =================
@@ -47,29 +34,29 @@ class _WeeklyMenuAdminState extends State<WeeklyMenuAdmin> {
 
     weekMenus = List.generate(
       7,
-      (index) => DayMenu(
-        date: monday.add(Duration(days: index)),
+      (i) => DayMenu(
+        date: monday.add(Duration(days: i)),
         selectedMeals: {},
       ),
     );
 
-    final mealResponse = await supabase.from('meals').select();
-    final dailyMenuResponse = await supabase.from('daily_menu').select();
+    final mealsRes = await supabase.from('meals').select();
+    final menuRes = await supabase.from('daily_menu').select();
 
     if (!mounted) return;
 
-    meals = List<Map<String, dynamic>>.from(mealResponse);
-    final dailyMenus = List<Map<String, dynamic>>.from(dailyMenuResponse);
+    meals = List<Map<String, dynamic>>.from(mealsRes);
+    final dailyMenus = List<Map<String, dynamic>>.from(menuRes);
 
     setState(() {
       for (var day in weekMenus) {
-        String dayString =
+        final key =
             "${day.date.year}-${day.date.month.toString().padLeft(2, '0')}-${day.date.day.toString().padLeft(2, '0')}";
 
-        Map<int, int> map = {};
+        final map = <int, int>{};
 
         for (var dm in dailyMenus.where(
-            (dm) => dm['menu_date'].toString().startsWith(dayString))) {
+            (e) => e['menu_date'].toString().startsWith(key))) {
           map[dm['meal_id']] = dm['quantity'] ?? 100;
         }
 
@@ -80,8 +67,8 @@ class _WeeklyMenuAdminState extends State<WeeklyMenuAdmin> {
 
   // ================= ADD DISH =================
   void showAddDishDialog() {
-    final dishController = TextEditingController();
-    final detailsController = TextEditingController();
+    final dishCtrl = TextEditingController();
+    final detailCtrl = TextEditingController();
 
     showDialog(
       context: context,
@@ -91,12 +78,12 @@ class _WeeklyMenuAdminState extends State<WeeklyMenuAdmin> {
           mainAxisSize: MainAxisSize.min,
           children: [
             TextField(
-              controller: dishController,
+              controller: dishCtrl,
               decoration: const InputDecoration(labelText: "Nom du plat"),
             ),
             const SizedBox(height: 10),
             TextField(
-              controller: detailsController,
+              controller: detailCtrl,
               maxLines: 3,
               decoration: const InputDecoration(labelText: "Détails"),
             ),
@@ -110,14 +97,14 @@ class _WeeklyMenuAdminState extends State<WeeklyMenuAdmin> {
           ElevatedButton(
             child: const Text("Ajouter"),
             onPressed: () async {
-              final dish = dishController.text.trim();
+              final dish = dishCtrl.text.trim();
               if (dish.isEmpty) return;
 
-              Navigator.pop(context); // fermer AVANT async
+              Navigator.pop(context);
 
               await supabase.from('meals').insert({
                 'dish': dish,
-                'details': detailsController.text.trim(),
+                'details': detailCtrl.text.trim(),
               });
 
               if (!mounted) return;
@@ -144,21 +131,37 @@ class _WeeklyMenuAdminState extends State<WeeklyMenuAdmin> {
           )
         ],
       ),
-      body: GridView.builder(
-        padding: const EdgeInsets.all(16),
-        itemCount: 7,
-        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: 2,
-          mainAxisSpacing: 16,
-          crossAxisSpacing: 16,
-        ),
-        itemBuilder: (_, i) => buildDayCard(i),
+      body: LayoutBuilder(
+        builder: (context, constraints) {
+          int crossAxis = 3;
+          if (constraints.maxWidth < 900) crossAxis = 2;
+          if (constraints.maxWidth < 600) crossAxis = 1;
+
+          return GridView.builder(
+            padding: const EdgeInsets.all(16),
+            itemCount: 7,
+            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: crossAxis,
+              crossAxisSpacing: 16,
+              mainAxisSpacing: 16,
+              childAspectRatio: 0.9,
+            ),
+            itemBuilder: (_, i) => buildDayCard(i),
+          );
+        },
       ),
       bottomNavigationBar: Padding(
         padding: const EdgeInsets.all(16),
-        child: ElevatedButton(
+        child: ElevatedButton.icon(
+          icon: isPublishing
+              ? const SizedBox(
+                  height: 18,
+                  width: 18,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
+              : const Icon(Icons.publish),
+          label: Text(isPublishing ? "Publication..." : "Publier"),
           onPressed: isPublishing ? null : publishMenu,
-          child: Text(isPublishing ? "Publication..." : "Publier"),
         ),
       ),
     );
@@ -166,15 +169,23 @@ class _WeeklyMenuAdminState extends State<WeeklyMenuAdmin> {
 
   Widget buildDayCard(int index) {
     final day = weekMenus[index];
-    final color = dayColors[index];
 
     return Card(
+      elevation: 5,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: Column(
         children: [
           Container(
-            padding: const EdgeInsets.all(8),
-            color: color.withValues(alpha: 0.2),
-            child: Text(getDayName(day.date)),
+            padding: const EdgeInsets.all(10),
+            width: double.infinity,
+            decoration: BoxDecoration(
+              color: Colors.blue.shade50,
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+            ),
+            child: Text(
+              getDayName(day.date),
+              style: const TextStyle(fontWeight: FontWeight.bold),
+            ),
           ),
           Expanded(
             child: ListView.builder(
@@ -184,14 +195,14 @@ class _WeeklyMenuAdminState extends State<WeeklyMenuAdmin> {
                 final id = meal['id'];
                 final name = meal['dish'];
 
-                bool isSelected = day.selectedMeals.containsKey(id);
+                bool selected = day.selectedMeals.containsKey(id);
                 int qty = day.selectedMeals[id] ?? 100;
 
                 return Column(
                   children: [
                     CheckboxListTile(
                       title: Text(name),
-                      value: isSelected,
+                      value: selected,
                       onChanged: (v) {
                         setState(() {
                           if (v == true) {
@@ -202,26 +213,27 @@ class _WeeklyMenuAdminState extends State<WeeklyMenuAdmin> {
                         });
                       },
                     ),
-                    if (isSelected)
+                    if (selected)
                       Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
                           IconButton(
-                            icon: const Icon(Icons.remove),
+                            icon: const Icon(Icons.remove_circle_outline),
                             onPressed: () {
                               setState(() {
-                                if (qty > 0) {
-                                  day.selectedMeals[id] = qty - 10;
-                                }
+                                day.selectedMeals[id] = (qty - 10).clamp(0, 1000);
                               });
                             },
                           ),
-                          Text("$qty"),
+                          Text(
+                            "$qty",
+                            style: const TextStyle(fontWeight: FontWeight.bold),
+                          ),
                           IconButton(
-                            icon: const Icon(Icons.add),
+                            icon: const Icon(Icons.add_circle_outline),
                             onPressed: () {
                               setState(() {
-                                day.selectedMeals[id] = qty + 10;
+                                day.selectedMeals[id] = (qty + 10).clamp(0, 1000);
                               });
                             },
                           ),
@@ -237,7 +249,7 @@ class _WeeklyMenuAdminState extends State<WeeklyMenuAdmin> {
     );
   }
 
-  // ================= PUBLISH (SAFE) =================
+  // ================= FIX COMPLET =================
   Future publishMenu() async {
     setState(() => isPublishing = true);
 
@@ -253,12 +265,16 @@ class _WeeklyMenuAdminState extends State<WeeklyMenuAdmin> {
             .gte('menu_date', start.toIso8601String())
             .lt('menu_date', end.toIso8601String());
 
-        final existingMeals =
-            (existing as List).map((e) => e['meal_id']).toSet();
+        final existingMap = {
+          for (var e in existing) e['meal_id']: e['quantity']
+        };
 
-        final selectedMeals = day.selectedMeals.keys.toSet();
+        final selectedMap = day.selectedMeals;
 
-        final toDelete = existingMeals.difference(selectedMeals);
+        // DELETE
+        final toDelete = existingMap.keys
+            .where((id) => !selectedMap.containsKey(id))
+            .toList();
 
         if (toDelete.isNotEmpty) {
           await supabase
@@ -266,47 +282,49 @@ class _WeeklyMenuAdminState extends State<WeeklyMenuAdmin> {
               .delete()
               .gte('menu_date', start.toIso8601String())
               .lt('menu_date', end.toIso8601String())
-              .inFilter('meal_id', toDelete.toList());
+              .inFilter('meal_id', toDelete);
         }
 
-        final toInsert = selectedMeals.difference(existingMeals);
+        // UPDATE + INSERT
+        for (var entry in selectedMap.entries) {
+          final id = entry.key;
+          final qty = entry.value;
 
-        if (toInsert.isNotEmpty) {
-          await supabase.from('daily_menu').insert(
-            toInsert.map((id) {
-              return {
-                'meal_id': id,
-                'menu_date': start.toIso8601String(),
-                'quantity': day.selectedMeals[id] ?? 100,
-              };
-            }).toList(),
-          );
+          if (existingMap.containsKey(id)) {
+            // UPDATE quantité
+            if (existingMap[id] != qty) {
+              await supabase
+                  .from('daily_menu')
+                  .update({'quantity': qty})
+                  .eq('meal_id', id)
+                  .gte('menu_date', start.toIso8601String())
+                  .lt('menu_date', end.toIso8601String());
+            }
+          } else {
+            // INSERT
+            await supabase.from('daily_menu').insert({
+              'meal_id': id,
+              'menu_date': start.toIso8601String(),
+              'quantity': qty,
+            });
+          }
         }
       }
 
       if (!mounted) return;
-
       showSnack("Menu publié");
     } catch (e) {
       if (!mounted) return;
-
       showSnack("Erreur: $e");
     }
 
     if (!mounted) return;
-
     setState(() => isPublishing = false);
   }
 
   String getDayName(DateTime date) {
     const days = [
-      "Lundi",
-      "Mardi",
-      "Mercredi",
-      "Jeudi",
-      "Vendredi",
-      "Samedi",
-      "Dimanche"
+      "Lundi","Mardi","Mercredi","Jeudi","Vendredi","Samedi","Dimanche"
     ];
     return days[date.weekday - 1];
   }
