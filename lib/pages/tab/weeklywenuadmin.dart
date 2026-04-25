@@ -22,7 +22,7 @@ class _WeeklyMenuAdminState extends State<WeeklyMenuAdmin> {
     Colors.purple,
     Colors.teal,
     Colors.indigo,
-    Colors.red
+    Colors.red,
   ];
 
   @override
@@ -31,10 +31,17 @@ class _WeeklyMenuAdminState extends State<WeeklyMenuAdmin> {
     initializeWeekMenus();
   }
 
-  void showSnack(String message) {
+  // ================= SNACK SAFE =================
+  void showSnack(String msg) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context)
-        .showSnackBar(SnackBar(content: Text(message)));
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(msg)),
+    );
+  }
+
+  // ================= DATE KEY =================
+  String dayKey(DateTime d) {
+    return "${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}";
   }
 
   // ================= INIT =================
@@ -60,13 +67,11 @@ class _WeeklyMenuAdminState extends State<WeeklyMenuAdmin> {
 
     setState(() {
       for (var day in weekMenus) {
-        final key =
-            "${day.date.year}-${day.date.month.toString().padLeft(2, '0')}-${day.date.day.toString().padLeft(2, '0')}";
+        final key = dayKey(day.date);
 
         final map = <int, int>{};
 
-        for (var dm in dailyMenus.where(
-            (e) => e['menu_date'].toString().startsWith(key))) {
+        for (var dm in dailyMenus.where((e) => e['menu_name'] == key)) {
           map[dm['meal_id']] = dm['quantity'] ?? 100;
         }
 
@@ -122,7 +127,7 @@ class _WeeklyMenuAdminState extends State<WeeklyMenuAdmin> {
               await initializeWeekMenus();
               showSnack("Plat ajouté");
             },
-          )
+          ),
         ],
       ),
     );
@@ -143,18 +148,18 @@ class _WeeklyMenuAdminState extends State<WeeklyMenuAdmin> {
       ),
       body: LayoutBuilder(
         builder: (context, constraints) {
-          int crossAxis = 3;
-          if (constraints.maxWidth < 900) crossAxis = 2;
-          if (constraints.maxWidth < 600) crossAxis = 1;
+          int cols = 3;
+          if (constraints.maxWidth < 900) cols = 2;
+          if (constraints.maxWidth < 600) cols = 1;
 
           return GridView.builder(
             padding: const EdgeInsets.all(16),
             itemCount: 7,
             gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: crossAxis,
+              crossAxisCount: cols,
               crossAxisSpacing: 16,
               mainAxisSpacing: 16,
-              childAspectRatio: 0.85,
+              childAspectRatio: 0.9,
             ),
             itemBuilder: (_, i) => buildDayCard(i),
           );
@@ -177,30 +182,30 @@ class _WeeklyMenuAdminState extends State<WeeklyMenuAdmin> {
     );
   }
 
+  // ================= CARD JOUR =================
   Widget buildDayCard(int index) {
     final day = weekMenus[index];
     final color = dayColors[index];
 
     return Card(
-      elevation: 6,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+      elevation: 5,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: Column(
         children: [
-          // 🔥 HEADER COLORÉ
+          // HEADER COLORÉ
           Container(
             width: double.infinity,
             padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
               color: color.withValues(alpha: 0.2),
               borderRadius:
-                  const BorderRadius.vertical(top: Radius.circular(18)),
+                  const BorderRadius.vertical(top: Radius.circular(16)),
             ),
             child: Text(
               getDayName(day.date),
               style: TextStyle(
                 fontWeight: FontWeight.bold,
                 color: color,
-                fontSize: 16,
               ),
             ),
           ),
@@ -216,52 +221,61 @@ class _WeeklyMenuAdminState extends State<WeeklyMenuAdmin> {
                 bool selected = day.selectedMeals.containsKey(id);
                 int qty = day.selectedMeals[id] ?? 100;
 
-                return Column(
-                  children: [
-                    CheckboxListTile(
-                      title: Text(name),
-                      value: selected,
-                      activeColor: color,
-                      onChanged: (v) {
-                        setState(() {
-                          if (v == true) {
-                            day.selectedMeals[id] = 100;
-                          } else {
-                            day.selectedMeals.remove(id);
-                          }
-                        });
-                      },
-                    ),
-                    if (selected)
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          IconButton(
-                            icon: const Icon(Icons.remove_circle_outline),
-                            onPressed: () {
-                              setState(() {
-                                day.selectedMeals[id] =
-                                    (qty - 10).clamp(0, 1000);
-                              });
-                            },
-                          ),
-                          Text(
-                            "$qty",
-                            style:
-                                const TextStyle(fontWeight: FontWeight.bold),
-                          ),
-                          IconButton(
-                            icon: const Icon(Icons.add_circle_outline),
-                            onPressed: () {
-                              setState(() {
-                                day.selectedMeals[id] =
-                                    (qty + 10).clamp(0, 1000);
-                              });
-                            },
-                          ),
-                        ],
+                return Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      // CHECKBOX
+                      Checkbox(
+                        value: selected,
+                        onChanged: (v) {
+                          setState(() {
+                            if (v == true) {
+                              day.selectedMeals[id] = 100;
+                            } else {
+                              day.selectedMeals.remove(id);
+                            }
+                          });
+                        },
                       ),
-                  ],
+
+                      // PLAT
+                      Expanded(
+                        child: Text(name),
+                      ),
+
+                      // QUANTITÉ + BOUTONS (ALIGNÉS PROPREMENT)
+                      if (selected)
+                        Row(
+                          children: [
+                            IconButton(
+                              icon: const Icon(Icons.remove_circle_outline),
+                              onPressed: () {
+                                setState(() {
+                                  day.selectedMeals[id] =
+                                      (qty - 5).clamp(0, 1000);
+                                });
+                              },
+                            ),
+                            Text(
+                              "$qty",
+                              style: const TextStyle(
+                                  fontWeight: FontWeight.bold),
+                            ),
+                            IconButton(
+                              icon: const Icon(Icons.add_circle_outline),
+                              onPressed: () {
+                                setState(() {
+                                  day.selectedMeals[id] =
+                                      (qty + 5).clamp(0, 1000);
+                                });
+                              },
+                            ),
+                          ],
+                        ),
+                    ],
+                  ),
                 );
               },
             ),
@@ -271,19 +285,18 @@ class _WeeklyMenuAdminState extends State<WeeklyMenuAdmin> {
     );
   }
 
-  // ================= FIX DELETE DEFINITIF =================
+  // ================= PUBLISH =================
   Future publishMenu() async {
     setState(() => isPublishing = true);
 
     try {
       for (var day in weekMenus) {
-        final dateKey =
-            "${day.date.year}-${day.date.month.toString().padLeft(2, '0')}-${day.date.day.toString().padLeft(2, '0')}";
+        final key = dayKey(day.date);
 
         final existing = await supabase
             .from('daily_menu')
             .select()
-            .like('menu_date', "$dateKey%");
+            .eq('menu_name', key);
 
         final existingMap = {
           for (var e in existing) e['meal_id']: e['quantity']
@@ -300,11 +313,11 @@ class _WeeklyMenuAdminState extends State<WeeklyMenuAdmin> {
           await supabase
               .from('daily_menu')
               .delete()
-              .like('menu_date', "$dateKey%")
+              .eq('menu_name', key)
               .inFilter('meal_id', toDelete);
         }
 
-        // UPDATE + INSERT
+        // INSERT / UPDATE
         for (var entry in selectedMap.entries) {
           final id = entry.key;
           final qty = entry.value;
@@ -314,13 +327,13 @@ class _WeeklyMenuAdminState extends State<WeeklyMenuAdmin> {
               await supabase
                   .from('daily_menu')
                   .update({'quantity': qty})
-                  .eq('meal_id', id)
-                  .like('menu_date', "$dateKey%");
+                  .eq('menu_name', key)
+                  .eq('meal_id', id);
             }
           } else {
             await supabase.from('daily_menu').insert({
+              'menu_name': key,
               'meal_id': id,
-              'menu_date': "${dateKey}T00:00:00",
               'quantity': qty,
             });
           }
@@ -352,9 +365,13 @@ class _WeeklyMenuAdminState extends State<WeeklyMenuAdmin> {
   }
 }
 
+// ================= MODEL =================
 class DayMenu {
   DateTime date;
   Map<int, int> selectedMeals;
 
-  DayMenu({required this.date, required this.selectedMeals});
+  DayMenu({
+    required this.date,
+    required this.selectedMeals,
+  });
 }
