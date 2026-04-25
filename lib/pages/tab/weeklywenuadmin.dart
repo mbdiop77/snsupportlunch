@@ -31,9 +31,17 @@ class _WeeklyMenuAdminState extends State<WeeklyMenuAdmin> {
     initializeWeekMenus();
   }
 
-  /// Initialise la semaine en chargeant les repas existants et en copiant la semaine passée si nécessaire
+  // ================= SAFE SNACK =================
+  void showSnack(String message) {
+    if (!mounted) return;
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message)),
+    );
+  }
+
+  // ================= INIT =================
   Future initializeWeekMenus() async {
-    // 1️⃣ Calcul de la semaine actuelle
     DateTime now = DateTime.now();
     DateTime monday = now.subtract(Duration(days: now.weekday - 1));
 
@@ -41,132 +49,117 @@ class _WeeklyMenuAdminState extends State<WeeklyMenuAdmin> {
       7,
       (index) => DayMenu(
         date: monday.add(Duration(days: index)),
-        selectedMeals: [],
+        selectedMeals: {},
       ),
     );
 
-    // 2️⃣ Charger tous les repas
     final mealResponse = await supabase.from('meals').select();
-    meals = List<Map<String, dynamic>>.from(mealResponse);
-
-    // 3️⃣ Vérifier si un menu existe déjà pour la semaine actuelle
     final dailyMenuResponse = await supabase.from('daily_menu').select();
-    final List<Map<String, dynamic>> dailyMenus =
-        List<Map<String, dynamic>>.from(dailyMenuResponse);
 
-    bool hasMenu = dailyMenus.any((dm) {
-      DateTime menuDate = DateTime.parse(dm['menu_date']);
-      return menuDate.isAfter(monday.subtract(const Duration(days: 1))) &&
-          menuDate.isBefore(monday.add(const Duration(days: 7)));
-    });
+    if (!mounted) return;
 
-    // 4️⃣ Copier la semaine passée si nécessaire
-    if (!hasMenu) {
-      await copyLastWeekMenu(monday, dailyMenus);
-    }
+    meals = List<Map<String, dynamic>>.from(mealResponse);
+    final dailyMenus = List<Map<String, dynamic>>.from(dailyMenuResponse);
 
-    // 5️⃣ Associer les repas existants aux jours
     setState(() {
       for (var day in weekMenus) {
         String dayString =
             "${day.date.year}-${day.date.month.toString().padLeft(2, '0')}-${day.date.day.toString().padLeft(2, '0')}";
-        day.selectedMeals = dailyMenus
-            .where((dm) => dm['menu_date'].toString() == dayString)
-            .map<int>((dm) => dm['meal_id'] as int)
-            .toList();
+
+        Map<int, int> map = {};
+
+        for (var dm in dailyMenus.where(
+            (dm) => dm['menu_date'].toString().startsWith(dayString))) {
+          map[dm['meal_id']] = dm['quantity'] ?? 100;
+        }
+
+        day.selectedMeals = map;
       }
     });
   }
 
-  /// Copie le menu de la semaine passée dans la nouvelle semaine
-  Future copyLastWeekMenu(DateTime thisMonday, List<Map<String, dynamic>> dailyMenus) async {
-    DateTime lastMonday = thisMonday.subtract(const Duration(days: 7));
+  // ================= ADD DISH =================
+  void showAddDishDialog() {
+    final dishController = TextEditingController();
+    final detailsController = TextEditingController();
 
-    final lastWeekMenus = dailyMenus.where((dm) {
-      DateTime menuDate = DateTime.parse(dm['menu_date']);
-      return menuDate.isAfter(lastMonday.subtract(const Duration(days: 1))) &&
-          menuDate.isBefore(lastMonday.add(const Duration(days: 7)));
-    }).toList();
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text("Ajouter un plat"),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: dishController,
+              decoration: const InputDecoration(labelText: "Nom du plat"),
+            ),
+            const SizedBox(height: 10),
+            TextField(
+              controller: detailsController,
+              maxLines: 3,
+              decoration: const InputDecoration(labelText: "Détails"),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text("Annuler"),
+          ),
+          ElevatedButton(
+            child: const Text("Ajouter"),
+            onPressed: () async {
+              final dish = dishController.text.trim();
+              if (dish.isEmpty) return;
 
-    for (var dm in lastWeekMenus) {
-      DateTime oldDate = DateTime.parse(dm['menu_date']);
-      int weekday = oldDate.weekday; // lundi = 1
-      DateTime newDate = thisMonday.add(Duration(days: weekday - 1));
+              Navigator.pop(context); // fermer AVANT async
 
-      // Vérifier si le menu existe déjà
-      final exists = dailyMenus.any((d) => d['menu_date'] == newDate.toIso8601String() && d['meal_id'] == dm['meal_id']);
-      if (!exists) {
-        await supabase.from('daily_menu').insert({
-          'menu_date': newDate.toIso8601String(),
-          'meal_id': dm['meal_id'],
-        });
-        // Ajouter à dailyMenus local pour que l'UI se mette à jour
-        dailyMenus.add({
-          'menu_date': newDate.toIso8601String(),
-          'meal_id': dm['meal_id'],
-        });
-      }
-    }
+              await supabase.from('meals').insert({
+                'dish': dish,
+                'details': detailsController.text.trim(),
+              });
+
+              if (!mounted) return;
+
+              await initializeWeekMenus();
+              showSnack("Plat ajouté");
+            },
+          )
+        ],
+      ),
+    );
   }
 
+  // ================= UI =================
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.grey.shade100,
-      body: Column(
-        children: [
-          const SizedBox(height: 10),
-          Expanded(
-            child: LayoutBuilder(
-              builder: (context, constraints) {
-                int crossAxisCount = 3;
-                if (constraints.maxWidth < 900) crossAxisCount = 2;
-                if (constraints.maxWidth < 600) crossAxisCount = 1;
-
-                return GridView.builder(
-                  padding: const EdgeInsets.all(16),
-                  itemCount: 7,
-                  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: crossAxisCount,
-                    mainAxisSpacing: 16,
-                    crossAxisSpacing: 16,
-                    childAspectRatio: 0.85,
-                  ),
-                  itemBuilder: (context, index) {
-                    return AnimatedContainer(
-                      duration: Duration(milliseconds: 300 + index * 100),
-                      curve: Curves.easeOut,
-                      child: buildDayCard(index),
-                    );
-                  },
-                );
-              },
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.all(16),
-            child: ElevatedButton.icon(
-              icon: isPublishing
-                  ? const SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        color: Colors.white,
-                      ),
-                    )
-                  : const Icon(Icons.publish),
-              label: Text(isPublishing ? "Publication..." : "Publier le menu"),
-              style: ElevatedButton.styleFrom(
-                minimumSize: const Size(double.infinity, 55),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-              ),
-              onPressed: isPublishing ? null : publishMenu,
-            ),
-          ),
+      appBar: AppBar(
+        title: const Text("Menu Hebdomadaire"),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.add),
+            onPressed: showAddDishDialog,
+          )
         ],
+      ),
+      body: GridView.builder(
+        padding: const EdgeInsets.all(16),
+        itemCount: 7,
+        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: 2,
+          mainAxisSpacing: 16,
+          crossAxisSpacing: 16,
+        ),
+        itemBuilder: (_, i) => buildDayCard(i),
+      ),
+      bottomNavigationBar: Padding(
+        padding: const EdgeInsets.all(16),
+        child: ElevatedButton(
+          onPressed: isPublishing ? null : publishMenu,
+          child: Text(isPublishing ? "Publication..." : "Publier"),
+        ),
       ),
     );
   }
@@ -176,182 +169,134 @@ class _WeeklyMenuAdminState extends State<WeeklyMenuAdmin> {
     final color = dayColors[index];
 
     return Card(
-      elevation: 6,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(18),
-      ),
       child: Column(
         children: [
           Container(
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              color : color.withValues(alpha: 150),
-              borderRadius: const BorderRadius.only(
-                topLeft: Radius.circular(18),
-                topRight: Radius.circular(18),
-              ),
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  getDayName(day.date),
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    color: color,
-                    fontSize: 16,
-                  ),
-                ),
-                IconButton(
-                  icon: const Icon(Icons.calendar_today, size: 18),
-                  onPressed: () async {
-                    DateTime? picked = await showDatePicker(
-                      context: context,
-                      initialDate: day.date,
-                      firstDate: DateTime.now().subtract(const Duration(days: 30)),
-                      lastDate: DateTime.now().add(const Duration(days: 60)),
-                    );
-                    if (picked != null) {
-                      setState(() {
-                        day.date = picked;
-                      });
-                    }
-                  },
-                )
-              ],
-            ),
+            padding: const EdgeInsets.all(8),
+            color: color.withValues(alpha: 0.2),
+            child: Text(getDayName(day.date)),
           ),
-          Padding(
-            padding: const EdgeInsets.all(6),
-            child: Text(
-              "${day.date.day}/${day.date.month}/${day.date.year}",
-              style: const TextStyle(fontWeight: FontWeight.w500),
-            ),
-          ),
-          const Divider(),
           Expanded(
-            child: meals.isEmpty
-                ? const Center(child: CircularProgressIndicator())
-                : ListView.builder(
-                    itemCount: meals.length,
-                    itemBuilder: (context, i) {
-                      final meal = meals[i];
-                      final mealId = meal['id'] as int;
-                      final mealName = meal['dish'] as String? ?? 'Repas';
-                      bool isSelected = day.selectedMeals.contains(mealId);
+            child: ListView.builder(
+              itemCount: meals.length,
+              itemBuilder: (_, i) {
+                final meal = meals[i];
+                final id = meal['id'];
+                final name = meal['dish'];
 
-                      return CheckboxListTile(
-                        dense: true,
-                        title: Text(mealName),
-                        value: isSelected,
-                        activeColor: color,
-                        onChanged: (value) {
-                          setState(() {
-                            if (value == true) {
-                              day.selectedMeals.add(mealId);
-                            } else {
-                              day.selectedMeals.remove(mealId);
-                            }
-                          });
-                        },
-                      );
-                    },
-                  ),
-          ),
-          Padding(
-            padding: const EdgeInsets.all(6),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceAround,
-              children: [
-                TextButton(
-                  child: const Text("Tout"),
-                  onPressed: () {
-                    setState(() {
-                      day.selectedMeals =
-                          meals.map<int>((m) => m['id'] as int).toList();
-                    });
-                  },
-                ),
-                TextButton(
-                  child: const Text("Aucun"),
-                  onPressed: () {
-                    setState(() {
-                      day.selectedMeals.clear();
-                    });
-                  },
-                ),
-              ],
+                bool isSelected = day.selectedMeals.containsKey(id);
+                int qty = day.selectedMeals[id] ?? 100;
+
+                return Column(
+                  children: [
+                    CheckboxListTile(
+                      title: Text(name),
+                      value: isSelected,
+                      onChanged: (v) {
+                        setState(() {
+                          if (v == true) {
+                            day.selectedMeals[id] = 100;
+                          } else {
+                            day.selectedMeals.remove(id);
+                          }
+                        });
+                      },
+                    ),
+                    if (isSelected)
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          IconButton(
+                            icon: const Icon(Icons.remove),
+                            onPressed: () {
+                              setState(() {
+                                if (qty > 0) {
+                                  day.selectedMeals[id] = qty - 10;
+                                }
+                              });
+                            },
+                          ),
+                          Text("$qty"),
+                          IconButton(
+                            icon: const Icon(Icons.add),
+                            onPressed: () {
+                              setState(() {
+                                day.selectedMeals[id] = qty + 10;
+                              });
+                            },
+                          ),
+                        ],
+                      ),
+                  ],
+                );
+              },
             ),
-          )
+          ),
         ],
       ),
     );
   }
 
-  /// Publier le menu avec upsert intelligent
-Future publishMenu() async {
-  setState(() => isPublishing = true);
+  // ================= PUBLISH (SAFE) =================
+  Future publishMenu() async {
+    setState(() => isPublishing = true);
 
-  try {
-    for (var day in weekMenus) {
-      final date = DateTime(
-        day.date.year,
-        day.date.month,
-        day.date.day,
-      ).toIso8601String();
+    try {
+      for (var day in weekMenus) {
+        DateTime start =
+            DateTime(day.date.year, day.date.month, day.date.day);
+        DateTime end = start.add(const Duration(days: 1));
 
-      // repas existants
-      final existing = await supabase
-          .from('daily_menu')
-          .select('meal_id')
-          .eq('menu_date', date);
-
-      final existingMeals =
-          (existing as List).map((e) => e['meal_id']).toSet();
-
-      final selectedMeals = day.selectedMeals.toSet();
-
-      // repas à supprimer
-      final toDelete = existingMeals.difference(selectedMeals);
-
-      if (toDelete.isNotEmpty) {
-        await supabase
+        final existing = await supabase
             .from('daily_menu')
-            .delete()
-            .eq('menu_date', date)
-            .inFilter('meal_id', toDelete.toList());
+            .select()
+            .gte('menu_date', start.toIso8601String())
+            .lt('menu_date', end.toIso8601String());
+
+        final existingMeals =
+            (existing as List).map((e) => e['meal_id']).toSet();
+
+        final selectedMeals = day.selectedMeals.keys.toSet();
+
+        final toDelete = existingMeals.difference(selectedMeals);
+
+        if (toDelete.isNotEmpty) {
+          await supabase
+              .from('daily_menu')
+              .delete()
+              .gte('menu_date', start.toIso8601String())
+              .lt('menu_date', end.toIso8601String())
+              .inFilter('meal_id', toDelete.toList());
+        }
+
+        final toInsert = selectedMeals.difference(existingMeals);
+
+        if (toInsert.isNotEmpty) {
+          await supabase.from('daily_menu').insert(
+            toInsert.map((id) {
+              return {
+                'meal_id': id,
+                'menu_date': start.toIso8601String(),
+                'quantity': day.selectedMeals[id] ?? 100,
+              };
+            }).toList(),
+          );
+        }
       }
 
-      // repas à ajouter
-      final toInsert = selectedMeals.difference(existingMeals);
+      if (!mounted) return;
 
-      if (toInsert.isNotEmpty) {
-        await supabase.from('daily_menu').insert(
-          toInsert
-              .map((mealId) => {
-                    'meal_id': mealId,
-                    'menu_date': date,
-                  })
-              .toList(),
-        );
-      }
+      showSnack("Menu publié");
+    } catch (e) {
+      if (!mounted) return;
+
+      showSnack("Erreur: $e");
     }
 
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Menu mis à jour")),
-      );
-    }
-  } catch (e) {
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Erreur : $e")),
-      );
-    }
+    if (!mounted) return;
+
+    setState(() => isPublishing = false);
   }
-
-  setState(() => isPublishing = false);
-}
 
   String getDayName(DateTime date) {
     const days = [
@@ -369,7 +314,7 @@ Future publishMenu() async {
 
 class DayMenu {
   DateTime date;
-  List<int> selectedMeals;
+  Map<int, int> selectedMeals;
 
   DayMenu({required this.date, required this.selectedMeals});
 }
