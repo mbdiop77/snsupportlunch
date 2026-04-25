@@ -88,7 +88,7 @@ class _WeeklyMenuAdminState extends State<WeeklyMenuAdmin> {
     showDialog(
       context: context,
       builder: (_) => AlertDialog(
-        title: const Text("Ajouter un plat"),
+        title: const Text("Ajouter un nouveau plat"),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -99,8 +99,8 @@ class _WeeklyMenuAdminState extends State<WeeklyMenuAdmin> {
             const SizedBox(height: 10),
             TextField(
               controller: detailCtrl,
-              maxLines: 3,
-              decoration: const InputDecoration(labelText: "Détails"),
+              maxLines: 2,
+              decoration: const InputDecoration(labelText: "Desctription du plat si c'est nécessaire"),
             ),
           ],
         ),
@@ -138,7 +138,7 @@ class _WeeklyMenuAdminState extends State<WeeklyMenuAdmin> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text("Menu Hebdomadaire"),
+        title: const Text("Menu hebdomadaire"),
         actions: [
           IconButton(
             icon: const Icon(Icons.add),
@@ -175,7 +175,7 @@ class _WeeklyMenuAdminState extends State<WeeklyMenuAdmin> {
                   child: CircularProgressIndicator(strokeWidth: 2),
                 )
               : const Icon(Icons.publish),
-          label: Text(isPublishing ? "Publication..." : "Publier"),
+          label: Text(isPublishing ? "Publication..." : "Publier le menu"),
           onPressed: isPublishing ? null : publishMenu,
         ),
       ),
@@ -296,7 +296,7 @@ class _WeeklyMenuAdminState extends State<WeeklyMenuAdmin> {
         final existing = await supabase
             .from('daily_menu')
             .select()
-            .eq('menu_name', key);
+            .eq('menu_date', key);
 
         final existingMap = {
           for (var e in existing) e['meal_id']: e['quantity']
@@ -313,7 +313,7 @@ class _WeeklyMenuAdminState extends State<WeeklyMenuAdmin> {
           await supabase
               .from('daily_menu')
               .delete()
-              .eq('menu_name', key)
+              .eq('menu_date', key)
               .inFilter('meal_id', toDelete);
         }
 
@@ -327,12 +327,12 @@ class _WeeklyMenuAdminState extends State<WeeklyMenuAdmin> {
               await supabase
                   .from('daily_menu')
                   .update({'quantity': qty})
-                  .eq('menu_name', key)
+                  .eq('menu_date', key)
                   .eq('meal_id', id);
             }
           } else {
             await supabase.from('daily_menu').insert({
-              'menu_name': key,
+              'menu_date': key,
               'meal_id': id,
               'quantity': qty,
             });
