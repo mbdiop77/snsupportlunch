@@ -12,6 +12,7 @@ class WeeklyMenuAdmin extends StatefulWidget {
 
 class _WeeklyMenuAdminState extends State<WeeklyMenuAdmin> {
   bool isPublishing = false;
+
   List<Map<String, dynamic>> meals = [];
   late List<DayMenu> weekMenus;
 
@@ -31,17 +32,26 @@ class _WeeklyMenuAdminState extends State<WeeklyMenuAdmin> {
     initializeWeekMenus();
   }
 
-  // ================= SNACK SAFE =================
+  // ================= UTILS =================
   void showSnack(String msg) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(msg)),
-    );
+    ScaffoldMessenger.of(context)
+        .showSnackBar(SnackBar(content: Text(msg)));
   }
 
-  // ================= DATE KEY =================
   String dayKey(DateTime d) {
     return "${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}";
+  }
+
+  String formatDate(DateTime d) {
+    return "${d.day.toString().padLeft(2, '0')}/${d.month.toString().padLeft(2, '0')}";
+  }
+
+  String getDayName(DateTime date) {
+    const days = [
+      "Lundi","Mardi","Mercredi","Jeudi","Vendredi","Samedi","Dimanche"
+    ];
+    return days[date.weekday - 1];
   }
 
   // ================= INIT =================
@@ -57,7 +67,7 @@ class _WeeklyMenuAdminState extends State<WeeklyMenuAdmin> {
       ),
     );
 
-    final mealsRes = await supabase.from('meals').select();
+    final mealsRes = await supabase.from('meals').select().order('dish');
     final menuRes = await supabase.from('daily_menu').select();
 
     if (!mounted) return;
@@ -71,7 +81,7 @@ class _WeeklyMenuAdminState extends State<WeeklyMenuAdmin> {
 
         final map = <int, int>{};
 
-        for (var dm in dailyMenus.where((e) => e['menu_name'] == key)) {
+        for (var dm in dailyMenus.where((e) => e['menu_date'] == key)) {
           map[dm['meal_id']] = dm['quantity'] ?? 100;
         }
 
@@ -100,7 +110,7 @@ class _WeeklyMenuAdminState extends State<WeeklyMenuAdmin> {
             TextField(
               controller: detailCtrl,
               maxLines: 2,
-              decoration: const InputDecoration(labelText: "Desctription du plat si c'est nécessaire"),
+              decoration: const InputDecoration(labelText: "Description du plat si \n c'est nénessaire"),
             ),
           ],
         ),
@@ -113,24 +123,65 @@ class _WeeklyMenuAdminState extends State<WeeklyMenuAdmin> {
             child: const Text("Ajouter"),
             onPressed: () async {
               final dish = dishCtrl.text.trim();
-              if (dish.isEmpty) return;
+
+              if (dish.isEmpty) {
+                showSnack("Nom obligatoire");
+                return;
+              }
 
               Navigator.pop(context);
 
-              await supabase.from('meals').insert({
-                'dish': dish,
-                'details': detailCtrl.text.trim(),
-              });
+              try {
+                await supabase.from('meals').insert({
+                  'dish': dish,
+                  'details': detailCtrl.text.trim(),
+                });
 
-              if (!mounted) return;
-
-              await initializeWeekMenus();
-              showSnack("Plat ajouté");
+                await initializeWeekMenus();
+                showSnack("Plat ajouté");
+              } catch (e) {
+                showSnack("Erreur: $e");
+              }
             },
           ),
         ],
       ),
     );
+  }
+
+  // ================= DATE PICKER =================
+  Future pickDate(int index) async {
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: weekMenus[index].date,
+      firstDate: DateTime(2020),
+      lastDate: DateTime(2100),
+    );
+
+    if (picked != null) {
+      setState(() {
+        weekMenus[index].date = picked;
+      });
+    }
+  }
+
+  // ================= CHECK NEXT WEEK =================
+  Future<bool> isNextWeekEmpty() async {
+    for (var day in weekMenus) {
+      final nextDate = day.date.add(const Duration(days: 7));
+      final key = dayKey(nextDate);
+
+      final res = await supabase
+          .from('daily_menu')
+          .select()
+          .eq('menu_date', key)
+          .limit(1);
+
+      if (res.isNotEmpty) {
+        return false;
+      }
+    }
+    return true;
   }
 
   // ================= UI =================
@@ -146,34 +197,22 @@ class _WeeklyMenuAdminState extends State<WeeklyMenuAdmin> {
           )
         ],
       ),
-      body: LayoutBuilder(
-        builder: (context, constraints) {
-          int cols = 3;
-          if (constraints.maxWidth < 900) cols = 2;
-          if (constraints.maxWidth < 600) cols = 1;
-
-          return GridView.builder(
-            padding: const EdgeInsets.all(16),
-            itemCount: 7,
-            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: cols,
-              crossAxisSpacing: 16,
-              mainAxisSpacing: 16,
-              childAspectRatio: 0.9,
-            ),
-            itemBuilder: (_, i) => buildDayCard(i),
-          );
-        },
+      body: GridView.builder(
+        padding: const EdgeInsets.all(16),
+        itemCount: 7,
+        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: 2,
+          crossAxisSpacing: 16,
+          mainAxisSpacing: 16,
+          childAspectRatio: 0.9,
+        ),
+        itemBuilder: (_, i) => buildDayCard(i),
       ),
       bottomNavigationBar: Padding(
         padding: const EdgeInsets.all(16),
         child: ElevatedButton.icon(
           icon: isPublishing
-              ? const SizedBox(
-                  height: 18,
-                  width: 18,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                )
+              ? const CircularProgressIndicator()
               : const Icon(Icons.publish),
           label: Text(isPublishing ? "Publication..." : "Publier le menu"),
           onPressed: isPublishing ? null : publishMenu,
@@ -182,110 +221,88 @@ class _WeeklyMenuAdminState extends State<WeeklyMenuAdmin> {
     );
   }
 
-  // ================= CARD JOUR =================
+  // ================= CARD =================
   Widget buildDayCard(int index) {
     final day = weekMenus[index];
     final color = dayColors[index];
 
     return Card(
-      elevation: 5,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: Column(
         children: [
-          // HEADER COLORÉ
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
+          InkWell(
+            onTap: () => pickDate(index),
+            child: Container(
+              padding: const EdgeInsets.all(10),
               color: color.withValues(alpha: 0.2),
-              borderRadius:
-                  const BorderRadius.vertical(top: Radius.circular(16)),
-            ),
-            child: Text(
-              getDayName(day.date),
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-                color: color,
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text("${getDayName(day.date)} ${formatDate(day.date)}"),
+                  const Icon(Icons.edit, size: 16)
+                ],
               ),
             ),
           ),
-
           Expanded(
             child: ListView.builder(
               itemCount: meals.length,
               itemBuilder: (_, i) {
                 final meal = meals[i];
                 final id = meal['id'];
-                final name = meal['dish'];
 
                 bool selected = day.selectedMeals.containsKey(id);
                 int qty = day.selectedMeals[id] ?? 100;
 
-                return Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 8),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.center,
-                    children: [
-                      // CHECKBOX
-                      Checkbox(
-                        value: selected,
-                        onChanged: (v) {
-                          setState(() {
-                            if (v == true) {
-                              day.selectedMeals[id] = 100;
-                            } else {
-                              day.selectedMeals.remove(id);
-                            }
-                          });
-                        },
-                      ),
-
-                      // PLAT
-                      Expanded(
-                        child: Text(name),
-                      ),
-
-                      // QUANTITÉ + BOUTONS (ALIGNÉS PROPREMENT)
-                      if (selected)
-                        Row(
-                          children: [
-                            IconButton(
-                              icon: const Icon(Icons.remove_circle_outline),
-                              onPressed: () {
-                                setState(() {
-                                  day.selectedMeals[id] =
-                                      (qty - 5).clamp(0, 1000);
-                                });
-                              },
-                            ),
-                            Text(
-                              "$qty",
-                              style: const TextStyle(
-                                  fontWeight: FontWeight.bold),
-                            ),
-                            IconButton(
-                              icon: const Icon(Icons.add_circle_outline),
-                              onPressed: () {
-                                setState(() {
-                                  day.selectedMeals[id] =
-                                      (qty + 5).clamp(0, 1000);
-                                });
-                              },
-                            ),
-                          ],
-                        ),
-                    ],
-                  ),
+                return Row(
+                  children: [
+                    Checkbox(
+                      value: selected,
+                      onChanged: (v) {
+                        setState(() {
+                          if (v == true) {
+                            day.selectedMeals[id] = 100;
+                          } else {
+                            day.selectedMeals.remove(id);
+                          }
+                        });
+                      },
+                    ),
+                    Expanded(child: Text(meal['dish'])),
+                    if (selected)
+                      Row(
+                        children: [
+                          IconButton(
+                            icon: const Icon(Icons.remove),
+                            onPressed: () {
+                              setState(() {
+                                day.selectedMeals[id] =
+                                    (qty - 5).clamp(0, 1000);
+                              });
+                            },
+                          ),
+                          Text("$qty"),
+                          IconButton(
+                            icon: const Icon(Icons.add),
+                            onPressed: () {
+                              setState(() {
+                                day.selectedMeals[id] =
+                                    (qty + 5).clamp(0, 1000);
+                              });
+                            },
+                          ),
+                        ],
+                      )
+                  ],
                 );
               },
             ),
-          ),
+          )
         ],
       ),
     );
   }
 
-  // ================= PUBLISH =================
+  // ================= PUBLISH + SMART DUP =================
   Future publishMenu() async {
     setState(() => isPublishing = true);
 
@@ -304,7 +321,6 @@ class _WeeklyMenuAdminState extends State<WeeklyMenuAdmin> {
 
         final selectedMap = day.selectedMeals;
 
-        // DELETE
         final toDelete = existingMap.keys
             .where((id) => !selectedMap.containsKey(id))
             .toList();
@@ -317,7 +333,6 @@ class _WeeklyMenuAdminState extends State<WeeklyMenuAdmin> {
               .inFilter('meal_id', toDelete);
         }
 
-        // INSERT / UPDATE
         for (var entry in selectedMap.entries) {
           final id = entry.key;
           final qty = entry.value;
@@ -340,32 +355,36 @@ class _WeeklyMenuAdminState extends State<WeeklyMenuAdmin> {
         }
       }
 
-      if (!mounted) return;
-      showSnack("Menu publié");
+      // ===== DUPLICATION INTELLIGENTE =====
+      final empty = await isNextWeekEmpty();
+
+      if (empty) {
+        for (var day in weekMenus) {
+          final newDate = day.date.add(const Duration(days: 7));
+          final newKey = dayKey(newDate);
+
+          for (var entry in day.selectedMeals.entries) {
+            await supabase.from('daily_menu').insert({
+              'menu_date': newKey,
+              'meal_id': entry.key,
+              'quantity': entry.value,
+            });
+          }
+        }
+
+        showSnack("Menu publié + semaine suivante générée");
+      } else {
+        showSnack("Menu publié (semaine suivante déjà existante)");
+      }
     } catch (e) {
-      if (!mounted) return;
       showSnack("Erreur: $e");
     }
 
     if (!mounted) return;
     setState(() => isPublishing = false);
   }
-
-  String getDayName(DateTime date) {
-    const days = [
-      "Lundi",
-      "Mardi",
-      "Mercredi",
-      "Jeudi",
-      "Vendredi",
-      "Samedi",
-      "Dimanche"
-    ];
-    return days[date.weekday - 1];
-  }
 }
 
-// ================= MODEL =================
 class DayMenu {
   DateTime date;
   Map<int, int> selectedMeals;
