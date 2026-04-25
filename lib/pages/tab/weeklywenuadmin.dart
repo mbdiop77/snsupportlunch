@@ -15,6 +15,16 @@ class _WeeklyMenuAdminState extends State<WeeklyMenuAdmin> {
   List<Map<String, dynamic>> meals = [];
   late List<DayMenu> weekMenus;
 
+  final List<Color> dayColors = [
+    Colors.blue,
+    Colors.green,
+    Colors.orange,
+    Colors.purple,
+    Colors.teal,
+    Colors.indigo,
+    Colors.red
+  ];
+
   @override
   void initState() {
     super.initState();
@@ -144,7 +154,7 @@ class _WeeklyMenuAdminState extends State<WeeklyMenuAdmin> {
               crossAxisCount: crossAxis,
               crossAxisSpacing: 16,
               mainAxisSpacing: 16,
-              childAspectRatio: 0.9,
+              childAspectRatio: 0.85,
             ),
             itemBuilder: (_, i) => buildDayCard(i),
           );
@@ -169,24 +179,32 @@ class _WeeklyMenuAdminState extends State<WeeklyMenuAdmin> {
 
   Widget buildDayCard(int index) {
     final day = weekMenus[index];
+    final color = dayColors[index];
 
     return Card(
-      elevation: 5,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      elevation: 6,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
       child: Column(
         children: [
+          // 🔥 HEADER COLORÉ
           Container(
-            padding: const EdgeInsets.all(10),
             width: double.infinity,
+            padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
-              color: Colors.blue.shade50,
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+              color: color.withValues(alpha: 0.2),
+              borderRadius:
+                  const BorderRadius.vertical(top: Radius.circular(18)),
             ),
             child: Text(
               getDayName(day.date),
-              style: const TextStyle(fontWeight: FontWeight.bold),
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                color: color,
+                fontSize: 16,
+              ),
             ),
           ),
+
           Expanded(
             child: ListView.builder(
               itemCount: meals.length,
@@ -203,6 +221,7 @@ class _WeeklyMenuAdminState extends State<WeeklyMenuAdmin> {
                     CheckboxListTile(
                       title: Text(name),
                       value: selected,
+                      activeColor: color,
                       onChanged: (v) {
                         setState(() {
                           if (v == true) {
@@ -221,19 +240,22 @@ class _WeeklyMenuAdminState extends State<WeeklyMenuAdmin> {
                             icon: const Icon(Icons.remove_circle_outline),
                             onPressed: () {
                               setState(() {
-                                day.selectedMeals[id] = (qty - 10).clamp(0, 1000);
+                                day.selectedMeals[id] =
+                                    (qty - 10).clamp(0, 1000);
                               });
                             },
                           ),
                           Text(
                             "$qty",
-                            style: const TextStyle(fontWeight: FontWeight.bold),
+                            style:
+                                const TextStyle(fontWeight: FontWeight.bold),
                           ),
                           IconButton(
                             icon: const Icon(Icons.add_circle_outline),
                             onPressed: () {
                               setState(() {
-                                day.selectedMeals[id] = (qty + 10).clamp(0, 1000);
+                                day.selectedMeals[id] =
+                                    (qty + 10).clamp(0, 1000);
                               });
                             },
                           ),
@@ -249,21 +271,19 @@ class _WeeklyMenuAdminState extends State<WeeklyMenuAdmin> {
     );
   }
 
-  // ================= FIX COMPLET =================
+  // ================= FIX DELETE DEFINITIF =================
   Future publishMenu() async {
     setState(() => isPublishing = true);
 
     try {
       for (var day in weekMenus) {
-        DateTime start =
-            DateTime(day.date.year, day.date.month, day.date.day);
-        DateTime end = start.add(const Duration(days: 1));
+        final dateKey =
+            "${day.date.year}-${day.date.month.toString().padLeft(2, '0')}-${day.date.day.toString().padLeft(2, '0')}";
 
         final existing = await supabase
             .from('daily_menu')
             .select()
-            .gte('menu_date', start.toIso8601String())
-            .lt('menu_date', end.toIso8601String());
+            .like('menu_date', "$dateKey%");
 
         final existingMap = {
           for (var e in existing) e['meal_id']: e['quantity']
@@ -280,8 +300,7 @@ class _WeeklyMenuAdminState extends State<WeeklyMenuAdmin> {
           await supabase
               .from('daily_menu')
               .delete()
-              .gte('menu_date', start.toIso8601String())
-              .lt('menu_date', end.toIso8601String())
+              .like('menu_date', "$dateKey%")
               .inFilter('meal_id', toDelete);
         }
 
@@ -291,20 +310,17 @@ class _WeeklyMenuAdminState extends State<WeeklyMenuAdmin> {
           final qty = entry.value;
 
           if (existingMap.containsKey(id)) {
-            // UPDATE quantité
             if (existingMap[id] != qty) {
               await supabase
                   .from('daily_menu')
                   .update({'quantity': qty})
                   .eq('meal_id', id)
-                  .gte('menu_date', start.toIso8601String())
-                  .lt('menu_date', end.toIso8601String());
+                  .like('menu_date', "$dateKey%");
             }
           } else {
-            // INSERT
             await supabase.from('daily_menu').insert({
               'meal_id': id,
-              'menu_date': start.toIso8601String(),
+              'menu_date': "${dateKey}T00:00:00",
               'quantity': qty,
             });
           }
@@ -324,7 +340,13 @@ class _WeeklyMenuAdminState extends State<WeeklyMenuAdmin> {
 
   String getDayName(DateTime date) {
     const days = [
-      "Lundi","Mardi","Mercredi","Jeudi","Vendredi","Samedi","Dimanche"
+      "Lundi",
+      "Mardi",
+      "Mercredi",
+      "Jeudi",
+      "Vendredi",
+      "Samedi",
+      "Dimanche"
     ];
     return days[date.weekday - 1];
   }
