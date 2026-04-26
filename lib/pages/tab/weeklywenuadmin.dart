@@ -166,14 +166,14 @@ class _WeeklyMenuAdminState extends State<WeeklyMenuAdmin> {
         children: [
           SafeArea(
            child: Padding(
-            padding: const EdgeInsets.all(08),
+            padding: const EdgeInsets.all(0),
             child: Align(
               alignment: Alignment.centerLeft,
               child: ElevatedButton(
                 onPressed: showAddDishDialog,
                 style: ElevatedButton.styleFrom(
                   shape: const CircleBorder(),
-                  padding: const EdgeInsets.all(10),
+                  padding: const EdgeInsets.all(0),
                 ),
                 child: const Icon(Icons.add),
               ),
@@ -290,30 +290,48 @@ class _WeeklyMenuAdminState extends State<WeeklyMenuAdmin> {
 
                       Expanded(child: Text(meal['dish'])),
 
-                      if (selected)
-                        Row(
-                          children: [
-                            IconButton(
-                              icon: const Icon(Icons.remove, size: 18),
-                              onPressed: () {
-                                setState(() {
-                                  day.selectedMeals[id] =
-                                      (qty - 5).clamp(0, 1000);
-                                });
-                              },
+                          if (selected)
+                            Row(
+                              children: [
+                                IconButton(
+                                  icon: const Icon(Icons.remove, size: 16),
+                                  onPressed: () async {
+                                    final key = dayKey(day.date);
+
+                                    final newQty = (qty - 5).clamp(0, 1000);
+
+                                    setState(() {
+                                      day.selectedMeals[id] = newQty;
+                                    });
+
+                                    await supabase
+                                        .from('daily_menu')
+                                        .update({'quantity': newQty})
+                                        .eq('menu_date', key)
+                                        .eq('meal_id', id);
+                                  },
+                                ),
+                                Text("$qty"),
+                                IconButton(
+                                  icon: const Icon(Icons.add, size: 16),
+                                  onPressed: () async {
+                                    final key = dayKey(day.date);
+
+                                    final newQty = (qty + 5).clamp(0, 1000);
+
+                                    setState(() {
+                                      day.selectedMeals[id] = newQty;
+                                    });
+
+                                    await supabase
+                                        .from('daily_menu')
+                                        .update({'quantity': newQty})
+                                        .eq('menu_date', key)
+                                        .eq('meal_id', id);
+                                  },
+                                ),
+                              ],
                             ),
-                            Text("$qty"),
-                            IconButton(
-                              icon: const Icon(Icons.add, size: 18),
-                              onPressed: () {
-                                setState(() {
-                                  day.selectedMeals[id] =
-                                      (qty + 5).clamp(0, 1000);
-                                });
-                              },
-                            ),
-                          ],
-                        ),
                     ],
                   ),
                 );
@@ -367,9 +385,13 @@ class _WeeklyMenuAdminState extends State<WeeklyMenuAdmin> {
           );
         }
       }
-    } catch (e) {
-      showSnack("Erreur: $e");
-    }
+        if (mounted) {
+          showSnack("Le menu a été mis à jour");
+        }
+
+      } catch (e) {
+        showSnack("Erreur: $e");
+      }
 
     setState(() => isPublishing = false);
   }
