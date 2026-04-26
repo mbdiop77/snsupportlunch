@@ -26,6 +26,7 @@ class _WeeklyMenuAdminState extends State<WeeklyMenuAdmin> {
     Colors.red
   ];
 
+  // ================= INIT =================
   @override
   void initState() {
     super.initState();
@@ -35,16 +36,17 @@ class _WeeklyMenuAdminState extends State<WeeklyMenuAdmin> {
   // ================= UTILS =================
   void showSnack(String msg) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context)
-        .showSnackBar(SnackBar(content: Text(msg)));
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(msg)),
+    );
   }
 
   String dayKey(DateTime d) {
-    return DateTime(d.year, d.month, d.day).toIso8601String();
+    return "${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}";
   }
 
   String formatDate(DateTime d) {
-    return "${d.day}/${d.month}";
+    return "${d.day.toString().padLeft(2, '0')}/${d.month.toString().padLeft(2, '0')}/${d.year}";
   }
 
   String getDayName(DateTime date) {
@@ -54,10 +56,10 @@ class _WeeklyMenuAdminState extends State<WeeklyMenuAdmin> {
     return days[date.weekday - 1];
   }
 
-  // ================= INIT =================
+  // ================= INIT DATA =================
   Future initializeWeekMenus() async {
-    DateTime now = DateTime.now();
-    DateTime monday = now.subtract(Duration(days: now.weekday - 1));
+    final now = DateTime.now();
+    final monday = now.subtract(Duration(days: now.weekday - 1));
 
     weekMenus = List.generate(
       7,
@@ -75,19 +77,6 @@ class _WeeklyMenuAdminState extends State<WeeklyMenuAdmin> {
     meals = List<Map<String, dynamic>>.from(mealsRes);
     final dailyMenus = List<Map<String, dynamic>>.from(menuRes);
 
-    // ✅ Vérifier si semaine actuelle vide
-    bool hasMenu = dailyMenus.any((dm) {
-      DateTime d = DateTime.parse(dm['menu_date']);
-      return d.isAfter(monday.subtract(const Duration(days: 1))) &&
-          d.isBefore(monday.add(const Duration(days: 7)));
-    });
-
-    // ✅ Copier semaine passée si vide
-    if (!hasMenu) {
-      await copyLastWeekMenu(monday, dailyMenus);
-    }
-
-    // ✅ Charger les données
     setState(() {
       for (var day in weekMenus) {
         final key = dayKey(day.date);
@@ -100,114 +89,69 @@ class _WeeklyMenuAdminState extends State<WeeklyMenuAdmin> {
     });
   }
 
-  // ================= COPY LAST WEEK =================
-  Future copyLastWeekMenu(
-      DateTime thisMonday, List<Map<String, dynamic>> dailyMenus) async {
-    DateTime lastMonday = thisMonday.subtract(const Duration(days: 7));
-
-    final lastWeekMenus = dailyMenus.where((dm) {
-      DateTime d = DateTime.parse(dm['menu_date']);
-      return d.isAfter(lastMonday.subtract(const Duration(days: 1))) &&
-          d.isBefore(lastMonday.add(const Duration(days: 7)));
-    }).toList();
-
-    for (var dm in lastWeekMenus) {
-      DateTime old = DateTime.parse(dm['menu_date']);
-      DateTime newDate =
-          thisMonday.add(Duration(days: old.weekday - 1));
-
-      final newKey = dayKey(newDate);
-
-      final exists = dailyMenus.any((e) =>
-          e['menu_date'] == newKey && e['meal_id'] == dm['meal_id']);
-
-      if (!exists) {
-        await supabase.from('daily_menu').insert({
-          'menu_date': newKey,
-          'meal_id': dm['meal_id'],
-        });
-
-        dailyMenus.add({
-          'menu_date': newKey,
-          'meal_id': dm['meal_id'],
-        });
-      }
-    }
-  }
-
   // ================= ADD DISH =================
-void showAddDishDialog() {
-  final dishCtrl = TextEditingController();
-  final detailCtrl = TextEditingController();
+  void showAddDishDialog() {
+    final dishCtrl = TextEditingController();
+    final detailCtrl = TextEditingController();
 
-  showDialog(
-    context: context,
-    builder: (_) => AlertDialog(
-      title: const Text("Ajouter un nouveau plat"),
-      content: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          TextField(
-            controller: dishCtrl,
-            decoration: const InputDecoration(
-              labelText: "Nom du plat",
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text("Ajouter un nouveau repas"),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: dishCtrl,
+              decoration: const InputDecoration(labelText: "Nom du repas"),
             ),
-          ),
-          const SizedBox(height: 10),
-          TextField(
-            controller: detailCtrl,
-            maxLines: 2,
-            decoration: const InputDecoration(
-              labelText: "Description (optionnel)",
+            const SizedBox(height: 10),
+            TextField(
+              controller: detailCtrl,
+              maxLines: 2,
+              decoration: const InputDecoration(labelText: "Description du repas (Optionnel)"),
             ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text("Annuler"),
           ),
+          ElevatedButton(
+            onPressed: () async {
+              final dish = dishCtrl.text.trim();
+              final detail = detailCtrl.text.trim();
+
+              if (dish.isEmpty) return;
+
+              Navigator.pop(context);
+
+              try {
+                await supabase.from('meals').insert({
+                  'dish': dish,
+                  'details': detail,
+                });
+
+                await initializeWeekMenus();
+                showSnack("Plat ajouté");
+              } catch (e) {
+                showSnack("Erreur: $e");
+              }
+            },
+            child: const Text("Ajouter"),
+          )
         ],
       ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(context),
-          child: const Text("Annuler"),
-        ),
-        ElevatedButton(
-          child: const Text("Ajouter"),
-          onPressed: () async {
-            final dish = dishCtrl.text.trim();
-            final detail = detailCtrl.text.trim();
-
-            if (dish.isEmpty) {
-              showSnack("Le nom du plat est obligatoire");
-              return;
-            }
-
-            Navigator.pop(context); // ✅ safe
-
-            try {
-              await supabase.from('meals').insert({
-                'dish': dish,
-                'details': detail,
-              });
-
-              if (!mounted) return;
-
-              await initializeWeekMenus();
-              showSnack("Plat ajouté");
-            } catch (e) {
-              if (!mounted) return;
-              showSnack("Erreur: $e");
-            }
-          },
-        ),
-      ],
-    ),
-  );
-}
+    );
+  }
 
   // ================= UI =================
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-       // title: const Text("Menu hebdomadaire"),
+      //  title: const Text("Menu hebdomadaire"),
         actions: [
           IconButton(
             icon: const Icon(Icons.add),
@@ -215,9 +159,10 @@ void showAddDishDialog() {
           )
         ],
       ),
+
       body: LayoutBuilder(
         builder: (context, constraints) {
-          int cols = 4; // 💻 2 lignes
+          int cols = 4;
           if (constraints.maxWidth < 900) cols = 2;
           if (constraints.maxWidth < 600) cols = 1;
 
@@ -228,12 +173,13 @@ void showAddDishDialog() {
               crossAxisCount: cols,
               crossAxisSpacing: 10,
               mainAxisSpacing: 10,
-              childAspectRatio: 1.2, // 🔥 compact
+              childAspectRatio: 1.25,
             ),
             itemBuilder: (_, i) => buildDayCard(i),
           );
         },
       ),
+
       bottomNavigationBar: Padding(
         padding: const EdgeInsets.all(12),
         child: ElevatedButton(
@@ -250,52 +196,70 @@ void showAddDishDialog() {
     final color = dayColors[index];
 
     return Card(
+      elevation: 4,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
       child: Column(
         children: [
           Container(
-            padding: const EdgeInsets.all(6),
-            color: color.withValues(alpha: 0.2),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.15),
+              borderRadius: const BorderRadius.only(
+                topLeft: Radius.circular(14),
+                topRight: Radius.circular(14),
+              ),
+            ),
+            child: Column(
               children: [
-                Text("${getDayName(day.date)} ${formatDate(day.date)}"),
-                IconButton(
-                  icon: const Icon(Icons.edit, size: 16),
-                  onPressed: () async {
-                    DateTime? picked = await showDatePicker(
-                      context: context,
-                      initialDate: day.date,
-                      firstDate: DateTime.now().subtract(const Duration(days: 30)),
-                      lastDate: DateTime.now().add(const Duration(days: 60)),
-                    );
-                    if (picked != null) {
-                      setState(() => day.date = picked);
-                    }
-                  },
-                )
+                Text(
+                  getDayName(day.date),
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: color,
+                  ),
+                ),
+                Text(
+                  formatDate(day.date),
+                  style: const TextStyle(fontSize: 12),
+                ),
               ],
             ),
           ),
+
           Expanded(
             child: ListView.builder(
               itemCount: meals.length,
               itemBuilder: (_, i) {
                 final meal = meals[i];
                 final id = meal['id'];
+                final name = meal['dish'];
 
-                return CheckboxListTile(
-                  dense: true,
-                  value: day.selectedMeals.contains(id),
-                  title: Text(meal['dish']),
-                  onChanged: (v) {
-                    setState(() {
-                      if (v == true) {
-                        day.selectedMeals.add(id);
-                      } else {
-                        day.selectedMeals.remove(id);
-                      }
-                    });
-                  },
+                final selected = day.selectedMeals.contains(id);
+
+                return Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 6),
+                  child: Row(
+                    children: [
+                      Checkbox(
+                        value: selected,
+                        onChanged: (v) {
+                          setState(() {
+                            if (v == true) {
+                              day.selectedMeals.add(id);
+                            } else {
+                              day.selectedMeals.remove(id);
+                            }
+                          });
+                        },
+                      ),
+                      Expanded(
+                        child: Text(
+                          name,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ),
                 );
               },
             ),
@@ -323,7 +287,7 @@ void showAddDishDialog() {
 
         final selectedSet = day.selectedMeals.toSet();
 
-        // 🔥 DELETE NON COCHÉ
+        // ❌ supprimer non cochés
         final toDelete = existingSet.difference(selectedSet);
 
         if (toDelete.isNotEmpty) {
@@ -334,17 +298,15 @@ void showAddDishDialog() {
               .inFilter('meal_id', toDelete.toList());
         }
 
-        // 🔥 INSERT NOUVEAUX
+        // ➕ ajouter nouveaux
         final toInsert = selectedSet.difference(existingSet);
 
         if (toInsert.isNotEmpty) {
           await supabase.from('daily_menu').insert(
-            toInsert
-                .map((id) => {
-                      'meal_id': id,
-                      'menu_date': key,
-                    })
-                .toList(),
+            toInsert.map((id) => {
+              'menu_date': key,
+              'meal_id': id,
+            }).toList(),
           );
         }
       }
@@ -358,9 +320,13 @@ void showAddDishDialog() {
   }
 }
 
+// ================= MODEL =================
 class DayMenu {
   DateTime date;
   List<int> selectedMeals;
 
-  DayMenu({required this.date, required this.selectedMeals});
+  DayMenu({
+    required this.date,
+    required this.selectedMeals,
+  });
 }
