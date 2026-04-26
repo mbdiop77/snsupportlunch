@@ -26,7 +26,6 @@ class _WeeklyMenuAdminState extends State<WeeklyMenuAdmin> {
     Colors.red,
   ];
 
-  // ================= INIT =================
   @override
   void initState() {
     super.initState();
@@ -51,12 +50,18 @@ class _WeeklyMenuAdminState extends State<WeeklyMenuAdmin> {
 
   String getDayName(DateTime date) {
     const days = [
-      "Lundi","Mardi","Mercredi","Jeudi","Vendredi","Samedi","Dimanche"
+      "Lundi",
+      "Mardi",
+      "Mercredi",
+      "Jeudi",
+      "Vendredi",
+      "Samedi",
+      "Dimanche"
     ];
     return days[date.weekday - 1];
   }
 
-  // ================= INIT DATA =================
+  // ================= INIT =================
   Future initializeWeekMenus() async {
     final now = DateTime.now();
     final monday = now.subtract(Duration(days: now.weekday - 1));
@@ -90,6 +95,22 @@ class _WeeklyMenuAdminState extends State<WeeklyMenuAdmin> {
         day.selectedMeals = map;
       }
     });
+  }
+
+  // ================= DATE PICKER (MODIF JOUR) =================
+  Future pickDate(int index) async {
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: weekMenus[index].date,
+      firstDate: DateTime(2020),
+      lastDate: DateTime(2100),
+    );
+
+    if (picked != null) {
+      setState(() {
+        weekMenus[index].date = picked;
+      });
+    }
   }
 
   // ================= ADD PLAT =================
@@ -130,17 +151,13 @@ class _WeeklyMenuAdminState extends State<WeeklyMenuAdmin> {
 
               Navigator.pop(context);
 
-              try {
-                await supabase.from('meals').insert({
-                  'dish': dish,
-                  'details': detail,
-                });
+              await supabase.from('meals').insert({
+                'dish': dish,
+                'details': detail,
+              });
 
-                await initializeWeekMenus();
-                showSnack("Un nouveau repas enregistré");
-              } catch (e) {
-                showSnack("Erreur: $e");
-              }
+              await initializeWeekMenus();
+              showSnack("Repas ajouté");
             },
             child: const Text("Ajouter"),
           ),
@@ -155,9 +172,8 @@ class _WeeklyMenuAdminState extends State<WeeklyMenuAdmin> {
     return Scaffold(
       body: Column(
         children: [
-          // ✅ bouton ajouté en haut (remplace AppBar)
           SafeArea(
-          child: Padding(
+            child: Padding(
               padding: const EdgeInsets.all(1),
               child: Align(
                 alignment: Alignment.centerLeft,
@@ -181,7 +197,7 @@ class _WeeklyMenuAdminState extends State<WeeklyMenuAdmin> {
                 if (constraints.maxWidth < 600) cols = 1;
 
                 return GridView.builder(
-                  padding: const EdgeInsets.all(12),
+                  padding: const EdgeInsets.all(08),
                   itemCount: 7,
                   gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
                     crossAxisCount: cols,
@@ -196,14 +212,6 @@ class _WeeklyMenuAdminState extends State<WeeklyMenuAdmin> {
           ),
         ],
       ),
-
-      bottomNavigationBar: Padding(
-        padding: const EdgeInsets.all(12),
-        child: ElevatedButton(
-          onPressed: isPublishing ? null : publishMenu,
-          child: Text(isPublishing ? "Publication..." : "Publier le menu"),
-        ),
-      ),
     );
   }
 
@@ -217,10 +225,9 @@ class _WeeklyMenuAdminState extends State<WeeklyMenuAdmin> {
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
       child: Column(
         children: [
-          // 🔥 HEADER FULL WIDTH
           Container(
             width: double.infinity,
-            padding: const EdgeInsets.all(10),
+            padding: const EdgeInsets.all(08),
             decoration: BoxDecoration(
               color: color.withValues(alpha: 0.25),
               borderRadius: const BorderRadius.only(
@@ -237,7 +244,20 @@ class _WeeklyMenuAdminState extends State<WeeklyMenuAdmin> {
                     color: color,
                   ),
                 ),
-                Text(formatDate(day.date)),
+
+                // 📅 DATE MODIFIABLE
+                InkWell(
+                  onTap: () => pickDate(index),
+                  child: Padding(
+                    padding: const EdgeInsets.only(top: 4),
+                    child: Text(
+                      formatDate(day.date),
+                      style: const TextStyle(
+                        decoration: TextDecoration.underline,
+                      ),
+                    ),
+                  ),
+                ),
               ],
             ),
           ),
@@ -259,7 +279,7 @@ class _WeeklyMenuAdminState extends State<WeeklyMenuAdmin> {
                     children: [
                       Checkbox(
                         value: selected,
-                        onChanged: (v) {
+                        onChanged: (v) async {
                           setState(() {
                             if (v == true) {
                               day.selectedMeals[id] = 100;
@@ -267,16 +287,28 @@ class _WeeklyMenuAdminState extends State<WeeklyMenuAdmin> {
                               day.selectedMeals.remove(id);
                             }
                           });
+
+                          // ❌ SUPPRESSION IMMÉDIATE SI DECOCHÉ
+                          final key = dayKey(day.date);
+
+                          if (v == false) {
+                            await supabase
+                                .from('daily_menu')
+                                .delete()
+                                .eq('menu_date', key)
+                                .eq('meal_id', id);
+                          } else {
+                            await supabase.from('daily_menu').upsert({
+                              'menu_date': key,
+                              'meal_id': id,
+                              'quantity': 100,
+                            });
+                          }
                         },
                       ),
-                      Expanded(
-                        child: Text(
-                          name,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
 
-                      // 🔥 +/- RESTAURÉ
+                      Expanded(child: Text(name)),
+
                       if (selected)
                         Row(
                           children: [
@@ -310,64 +342,6 @@ class _WeeklyMenuAdminState extends State<WeeklyMenuAdmin> {
         ],
       ),
     );
-  }
-
-  // ================= PUBLISH =================
-  Future publishMenu() async {
-    setState(() => isPublishing = true);
-
-    try {
-      for (var day in weekMenus) {
-        final key = dayKey(day.date);
-
-        final existing = await supabase
-            .from('daily_menu')
-            .select('meal_id')
-            .eq('menu_date', key);
-
-        final existingSet =
-            (existing as List).map((e) => e['meal_id']).toSet();
-
-        final selectedSet = day.selectedMeals.keys.toSet();
-
-        // ❌ DELETE non cochés
-        final toDelete = existingSet.difference(selectedSet);
-
-        if (toDelete.isNotEmpty) {
-          await supabase
-              .from('daily_menu')
-              .delete()
-              .eq('menu_date', key)
-              .filter('meal_id', 'in', toDelete.toList());
-        }
-
-        // ➕ INSERT / UPDATE
-        for (var entry in day.selectedMeals.entries) {
-          final mealId = entry.key;
-          final qty = entry.value;
-
-          if (existingSet.contains(mealId)) {
-            await supabase
-                .from('daily_menu')
-                .update({'quantity': qty})
-                .eq('menu_date', key)
-                .eq('meal_id', mealId);
-          } else {
-            await supabase.from('daily_menu').insert({
-              'menu_date': key,
-              'meal_id': mealId,
-              'quantity': qty,
-            });
-          }
-        }
-      }
-
-      showSnack("Menu mis à jour");
-    } catch (e) {
-      showSnack("Erreur: $e");
-    }
-
-    setState(() => isPublishing = false);
   }
 }
 
