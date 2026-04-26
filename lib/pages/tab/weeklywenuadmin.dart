@@ -23,7 +23,7 @@ class _WeeklyMenuAdminState extends State<WeeklyMenuAdmin> {
     Colors.purple,
     Colors.teal,
     Colors.indigo,
-    Colors.red
+    Colors.red,
   ];
 
   // ================= INIT =================
@@ -46,7 +46,7 @@ class _WeeklyMenuAdminState extends State<WeeklyMenuAdmin> {
   }
 
   String formatDate(DateTime d) {
-    return "${d.day.toString().padLeft(2, '0')}/${d.month.toString().padLeft(2, '0')}/${d.year}";
+    return "${d.day}/${d.month}/${d.year}";
   }
 
   String getDayName(DateTime date) {
@@ -65,7 +65,7 @@ class _WeeklyMenuAdminState extends State<WeeklyMenuAdmin> {
       7,
       (i) => DayMenu(
         date: monday.add(Duration(days: i)),
-        selectedMeals: [],
+        selectedMeals: {},
       ),
     );
 
@@ -81,15 +81,18 @@ class _WeeklyMenuAdminState extends State<WeeklyMenuAdmin> {
       for (var day in weekMenus) {
         final key = dayKey(day.date);
 
-        day.selectedMeals = dailyMenus
-            .where((dm) => dm['menu_date'] == key)
-            .map<int>((dm) => dm['meal_id'] as int)
-            .toList();
+        final map = <int, int>{};
+
+        for (var dm in dailyMenus.where((e) => e['menu_date'] == key)) {
+          map[dm['meal_id']] = dm['quantity'] ?? 100;
+        }
+
+        day.selectedMeals = map;
       }
     });
   }
 
-  // ================= ADD DISH =================
+  // ================= ADD PLAT =================
   void showAddDishDialog() {
     final dishCtrl = TextEditingController();
     final detailCtrl = TextEditingController();
@@ -97,7 +100,7 @@ class _WeeklyMenuAdminState extends State<WeeklyMenuAdmin> {
     showDialog(
       context: context,
       builder: (_) => AlertDialog(
-        title: const Text("Ajouter un nouveau repas"),
+        title: const Text("Nouveau repas"),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -109,7 +112,7 @@ class _WeeklyMenuAdminState extends State<WeeklyMenuAdmin> {
             TextField(
               controller: detailCtrl,
               maxLines: 2,
-              decoration: const InputDecoration(labelText: "Description du repas (Optionnel)"),
+              decoration: const InputDecoration(labelText: "Description (optionnel)"),
             ),
           ],
         ),
@@ -134,13 +137,13 @@ class _WeeklyMenuAdminState extends State<WeeklyMenuAdmin> {
                 });
 
                 await initializeWeekMenus();
-                showSnack("Plat ajouté");
+                showSnack("Un nouveau repas enregistré");
               } catch (e) {
                 showSnack("Erreur: $e");
               }
             },
             child: const Text("Ajouter"),
-          )
+          ),
         ],
       ),
     );
@@ -150,34 +153,48 @@ class _WeeklyMenuAdminState extends State<WeeklyMenuAdmin> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-      //  title: const Text("Menu hebdomadaire"),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.add),
-            onPressed: showAddDishDialog,
-          )
-        ],
-      ),
-
-      body: LayoutBuilder(
-        builder: (context, constraints) {
-          int cols = 4;
-          if (constraints.maxWidth < 900) cols = 2;
-          if (constraints.maxWidth < 600) cols = 1;
-
-          return GridView.builder(
-            padding: const EdgeInsets.all(12),
-            itemCount: 7,
-            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: cols,
-              crossAxisSpacing: 10,
-              mainAxisSpacing: 10,
-              childAspectRatio: 1.25,
+      body: Column(
+        children: [
+          // ✅ bouton ajouté en haut (remplace AppBar)
+          SafeArea(
+          child: Padding(
+              padding: const EdgeInsets.all(1),
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: ElevatedButton(
+                  onPressed: showAddDishDialog,
+                  style: ElevatedButton.styleFrom(
+                    shape: const CircleBorder(),
+                    padding: const EdgeInsets.all(1),
+                  ),
+                  child: const Icon(Icons.add),
+                ),
+              ),
             ),
-            itemBuilder: (_, i) => buildDayCard(i),
-          );
-        },
+          ),
+
+          Expanded(
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                int cols = 4;
+                if (constraints.maxWidth < 900) cols = 2;
+                if (constraints.maxWidth < 600) cols = 1;
+
+                return GridView.builder(
+                  padding: const EdgeInsets.all(12),
+                  itemCount: 7,
+                  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: cols,
+                    crossAxisSpacing: 10,
+                    mainAxisSpacing: 10,
+                    childAspectRatio: 1.25,
+                  ),
+                  itemBuilder: (_, i) => buildDayCard(i),
+                );
+              },
+            ),
+          ),
+        ],
       ),
 
       bottomNavigationBar: Padding(
@@ -200,10 +217,12 @@ class _WeeklyMenuAdminState extends State<WeeklyMenuAdmin> {
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
       child: Column(
         children: [
+          // 🔥 HEADER FULL WIDTH
           Container(
-            padding: const EdgeInsets.all(8),
+            width: double.infinity,
+            padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.15),
+              color: color.withValues(alpha: 0.25),
               borderRadius: const BorderRadius.only(
                 topLeft: Radius.circular(14),
                 topRight: Radius.circular(14),
@@ -218,10 +237,7 @@ class _WeeklyMenuAdminState extends State<WeeklyMenuAdmin> {
                     color: color,
                   ),
                 ),
-                Text(
-                  formatDate(day.date),
-                  style: const TextStyle(fontSize: 12),
-                ),
+                Text(formatDate(day.date)),
               ],
             ),
           ),
@@ -234,7 +250,8 @@ class _WeeklyMenuAdminState extends State<WeeklyMenuAdmin> {
                 final id = meal['id'];
                 final name = meal['dish'];
 
-                final selected = day.selectedMeals.contains(id);
+                final selected = day.selectedMeals.containsKey(id);
+                final qty = day.selectedMeals[id] ?? 100;
 
                 return Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 6),
@@ -245,7 +262,7 @@ class _WeeklyMenuAdminState extends State<WeeklyMenuAdmin> {
                         onChanged: (v) {
                           setState(() {
                             if (v == true) {
-                              day.selectedMeals.add(id);
+                              day.selectedMeals[id] = 100;
                             } else {
                               day.selectedMeals.remove(id);
                             }
@@ -258,6 +275,32 @@ class _WeeklyMenuAdminState extends State<WeeklyMenuAdmin> {
                           overflow: TextOverflow.ellipsis,
                         ),
                       ),
+
+                      // 🔥 +/- RESTAURÉ
+                      if (selected)
+                        Row(
+                          children: [
+                            IconButton(
+                              icon: const Icon(Icons.remove, size: 18),
+                              onPressed: () {
+                                setState(() {
+                                  day.selectedMeals[id] =
+                                      (qty - 5).clamp(0, 1000);
+                                });
+                              },
+                            ),
+                            Text("$qty"),
+                            IconButton(
+                              icon: const Icon(Icons.add, size: 18),
+                              onPressed: () {
+                                setState(() {
+                                  day.selectedMeals[id] =
+                                      (qty + 5).clamp(0, 1000);
+                                });
+                              },
+                            ),
+                          ],
+                        ),
                     ],
                   ),
                 );
@@ -285,9 +328,9 @@ class _WeeklyMenuAdminState extends State<WeeklyMenuAdmin> {
         final existingSet =
             (existing as List).map((e) => e['meal_id']).toSet();
 
-        final selectedSet = day.selectedMeals.toSet();
+        final selectedSet = day.selectedMeals.keys.toSet();
 
-        // ❌ supprimer non cochés
+        // ❌ DELETE non cochés
         final toDelete = existingSet.difference(selectedSet);
 
         if (toDelete.isNotEmpty) {
@@ -295,19 +338,27 @@ class _WeeklyMenuAdminState extends State<WeeklyMenuAdmin> {
               .from('daily_menu')
               .delete()
               .eq('menu_date', key)
-              .inFilter('meal_id', toDelete.toList());
+              .filter('meal_id', 'in', toDelete.toList());
         }
 
-        // ➕ ajouter nouveaux
-        final toInsert = selectedSet.difference(existingSet);
+        // ➕ INSERT / UPDATE
+        for (var entry in day.selectedMeals.entries) {
+          final mealId = entry.key;
+          final qty = entry.value;
 
-        if (toInsert.isNotEmpty) {
-          await supabase.from('daily_menu').insert(
-            toInsert.map((id) => {
+          if (existingSet.contains(mealId)) {
+            await supabase
+                .from('daily_menu')
+                .update({'quantity': qty})
+                .eq('menu_date', key)
+                .eq('meal_id', mealId);
+          } else {
+            await supabase.from('daily_menu').insert({
               'menu_date': key,
-              'meal_id': id,
-            }).toList(),
-          );
+              'meal_id': mealId,
+              'quantity': qty,
+            });
+          }
         }
       }
 
@@ -323,7 +374,7 @@ class _WeeklyMenuAdminState extends State<WeeklyMenuAdmin> {
 // ================= MODEL =================
 class DayMenu {
   DateTime date;
-  List<int> selectedMeals;
+  Map<int, int> selectedMeals;
 
   DayMenu({
     required this.date,
