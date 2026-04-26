@@ -21,8 +21,7 @@ class _DashboardPageState extends State<DashboardPage> {
   };
 
   List<Map<String, dynamic>> hourly = [];
-  static const int maxMeals = 300;
-
+  int maxMeals = 0;
   Timer? refreshTimer;
 
   @override
@@ -39,34 +38,52 @@ class _DashboardPageState extends State<DashboardPage> {
     super.dispose();
   }
 
-  Future<void> loadStats() async {
-    try {
-      final s = await supabase.rpc('today_meal_stats');
-      final h = await supabase.rpc('scans_by_hour');
+Future<void> loadStats() async {
+  try {
+    final s = await supabase.rpc('today_meal_stats');
+    final h = await supabase.rpc('scans_by_hour');
 
-      if (!mounted) return;
+    // ✅ NOUVELLE PARTIE (capacité réelle)
+    final today = DateFormat('yyyy-MM-dd').format(DateTime.now());
 
-      setState(() {
-        stats = s is List && s.isNotEmpty
-            ? {
-                'meals_taken': (s.first['meals_taken'] as num? ?? 0).toInt(),
-                'passages_without_meal':
-                    (s.first['passages_without_meal'] as num? ?? 0).toInt(),
-                'total_passages':
-                    (s.first['total_passages'] as num? ?? 0).toInt(),
-              }
-            : {
-                'meals_taken': 0,
-                'passages_without_meal': 0,
-                'total_passages': 0
-              };
+    final capacityRes = await supabase
+        .from('daily_menu')
+        .select('quantity')
+        .eq('menu_date', today);
 
-        hourly = h is List ? List<Map<String, dynamic>>.from(h) : [];
-      });
-    } catch (e) {
-      debugPrint("Erreur loadStats: $e");
-    }
+    int totalCapacity = 0;
+      totalCapacity = capacityRes.fold<int>(
+        0,
+        (sum, e) => sum + ((e['quantity'] as num?)?.toInt() ?? 0),
+      );
+
+
+    if (!mounted) return;
+
+    setState(() {
+      stats = s is List && s.isNotEmpty
+          ? {
+              'meals_taken': (s.first['meals_taken'] as num? ?? 0).toInt(),
+              'passages_without_meal':
+                  (s.first['passages_without_meal'] as num? ?? 0).toInt(),
+              'total_passages':
+                  (s.first['total_passages'] as num? ?? 0).toInt(),
+            }
+          : {
+              'meals_taken': 0,
+              'passages_without_meal': 0,
+              'total_passages': 0
+            };
+
+      hourly = h is List ? List<Map<String, dynamic>>.from(h) : [];
+
+      // ✅ ICI on remplace le 300
+      maxMeals = totalCapacity;
+    });
+  } catch (e) {
+    debugPrint("Erreur loadStats: $e");
   }
+}
 
   String formatTime(String? iso) {
     if (iso == null) return "--";
