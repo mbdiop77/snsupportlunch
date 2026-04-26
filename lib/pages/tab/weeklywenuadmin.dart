@@ -32,13 +32,7 @@ class _WeeklyMenuAdminState extends State<WeeklyMenuAdmin> {
     initializeWeekMenus();
   }
 
-  // ================= UTILS =================
-  void showSnack(String msg) {
-    if (!mounted) return;
-    ScaffoldMessenger.of(context)
-        .showSnackBar(SnackBar(content: Text(msg)));
-  }
-
+  // ================= FORMAT DATE FIXÉ (IMPORTANT) =================
   String dayKey(DateTime d) {
     return "${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}";
   }
@@ -116,7 +110,7 @@ class _WeeklyMenuAdminState extends State<WeeklyMenuAdmin> {
             TextField(
               controller: detailCtrl,
               maxLines: 2,
-              decoration: const InputDecoration(labelText: "Description"),
+              decoration: const InputDecoration(labelText: "Description (optionnel)"),
             ),
           ],
         ),
@@ -134,17 +128,12 @@ class _WeeklyMenuAdminState extends State<WeeklyMenuAdmin> {
 
               Navigator.pop(context);
 
-              try {
-                await supabase.from('meals').insert({
-                  'dish': dish,
-                  'details': detail,
-                });
+              await supabase.from('meals').insert({
+                'dish': dish,
+                'details': detail,
+              });
 
-                await initializeWeekMenus();
-                showSnack("Plat ajouté");
-              } catch (e) {
-                showSnack("Erreur: $e");
-              }
+              await initializeWeekMenus();
             },
             child: const Text("Ajouter"),
           ),
@@ -176,13 +165,20 @@ class _WeeklyMenuAdminState extends State<WeeklyMenuAdmin> {
       body: Column(
         children: [
           SafeArea(
+           child: Padding(
+            padding: const EdgeInsets.all(08),
             child: Align(
               alignment: Alignment.centerLeft,
-              child: IconButton(
-                icon: const Icon(Icons.add),
+              child: ElevatedButton(
                 onPressed: showAddDishDialog,
+                style: ElevatedButton.styleFrom(
+                  shape: const CircleBorder(),
+                  padding: const EdgeInsets.all(10),
+                ),
+                child: const Icon(Icons.add),
               ),
             ),
+          ),
           ),
 
           Expanded(
@@ -241,7 +237,6 @@ class _WeeklyMenuAdminState extends State<WeeklyMenuAdmin> {
                   ),
                 ),
 
-                // 📅 DATE MODIFIABLE
                 InkWell(
                   onTap: () => pickDate(index),
                   child: Text(
@@ -280,7 +275,7 @@ class _WeeklyMenuAdminState extends State<WeeklyMenuAdmin> {
                             }
                           });
 
-                          // 🔥 SUPPRESSION IMMÉDIATE EN BASE
+                          // 🔥 SUPPRESSION FIXÉE (CAUSE DU BUG)
                           if (v == false) {
                             final key = dayKey(day.date);
 
@@ -372,13 +367,17 @@ class _WeeklyMenuAdminState extends State<WeeklyMenuAdmin> {
           );
         }
       }
-
-      showSnack("Menu mis à jour");
     } catch (e) {
       showSnack("Erreur: $e");
     }
 
     setState(() => isPublishing = false);
+  }
+
+  void showSnack(String msg) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context)
+        .showSnackBar(SnackBar(content: Text(msg)));
   }
 }
 
