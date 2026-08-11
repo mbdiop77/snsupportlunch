@@ -1,17 +1,8 @@
-# -------------------------------
-# Netlify Configuration Flutter Web + Supabase
-# -------------------------------
-
 [build]
   command = "git clone https://github.com/flutter/flutter.git --depth 1 -b stable /tmp/flutter && export PATH=\"$PATH:/tmp/flutter/bin\" && flutter config --enable-web && flutter pub get && flutter build web --release"
   publish = "build/web"
 
-publish = "build/web"
-
-[build.environment]
-SECRETS_SCAN_SMART_DETECTION_ENABLED = "false"
-
 [[redirects]]
-from = "/*"
-to = "/index.html"
-status = 200
+  from = "/*"
+  to = "/index.html"
+  status = 200
